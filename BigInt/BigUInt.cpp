@@ -415,9 +415,9 @@ namespace big {
     }
 
     std::string BigUInt::toDecimalString() const {
+        // Terrible, don't use
         std::stringstream ss;
         auto copy = *this;
-
         while (copy != 0ul) {
             size_t decimalDigit = 0ul;
             for (size_t i = 0ul; i != copy.digitCount(); ++i) {
