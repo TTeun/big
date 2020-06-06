@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <random>
+#include <bitset>
 
 namespace big {
     static_assert(BigUInt::s_maxDigit <= std::numeric_limits<size_t>::max() / BigUInt::s_maxDigit,
@@ -429,6 +430,19 @@ namespace big {
         auto reversedResult = ss.str();
         std::reverse(reversedResult.begin(), reversedResult.end());
         return reversedResult;
+    }
+
+    std::string BigUInt::toBinaryString() const {
+        std::stringstream ss;
+        ss << std::bitset<s_bitsPerDigit>(mostSignificantDigit());
+        if (digitCount() > 1ul) {
+            for (auto lrIt = lrcBegin() + 1ul; lrIt != lrcEnd(); ++lrIt) {
+                ss << std::setfill('0') << std::setw(32) << std::bitset<s_bitsPerDigit>(*lrIt);
+            }
+        }
+        auto str = ss.str();
+        str.erase(0, std::min(str.find_first_not_of('0'), str.size() - 1));
+        return str;
     }
 
     std::ostream &operator<<(std::ostream &os, const BigUInt &bigUnsignedInt) {
