@@ -6,8 +6,6 @@
 #include <iostream>
 #include <random>
 
-#define NDEBUG
-
 namespace big {
     const size_t BigUIntBase::s_maxDigit; // So that it can be used in std::min in BigUInt::divisionSubRoutine
 
@@ -91,7 +89,7 @@ namespace big {
 
     /** Addition **/
     BigUInt &BigUInt::operator+=(const BigUInt &rhs) {
-        // assert(isWellFormed() && rhs.isWellFormed());
+        assert(isWellFormed() && rhs.isWellFormed());
         if (rhs.isZero()) {
             return *this;
         } else if (isZero()) {
@@ -541,7 +539,7 @@ namespace big {
     void BigUInt::carryAdditionViaIterators(rlIterator thisIt, rlIterator thisEnd, size_t carry) {
         assert(carry != 0ul);
         assert(carry + s_base < std::numeric_limits<size_t>::max());
-        for (; thisIt != thisEnd; ++thisIt) {
+        for (;; ++thisIt) {
             *thisIt += carry;
             if (*thisIt < s_base) {
                 return;
@@ -553,16 +551,14 @@ namespace big {
     }
 
     void BigUInt::carryUnitAdditionViaIterators(rlIterator thisIt, rlIterator thisEnd) {
-        for (; thisIt != thisEnd; ++thisIt) {
+        for (;; ++thisIt) {
             if (*thisIt < s_maxDigit) {
                 ++*thisIt;
                 return;
             }
             *thisIt = 0ul;
         }
-        assert(false);
     }
-
 
     void BigUInt::addViaIterators(rlIterator resultIt, rlIterator resultEnd, rlcIterator rhsIt, rlcIterator rhsEnd) {
         assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
@@ -631,7 +627,7 @@ namespace big {
         assert(multiplier < s_base);
         assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
         size_t carry = 0ul;
-        static const unsigned short addBlockSize = 6u;
+        static const unsigned short addBlockSize = 10u;
         size_t s0;
         for (; rhsEnd - rhsIt >= addBlockSize;) {
             s0 = *resultIt + *rhsIt * multiplier + carry;
