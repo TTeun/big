@@ -18,6 +18,7 @@ namespace big {
         static const size_t s_base          = 1000000000ul;
         static const size_t s_maxDigit      = 999999999ul;
         static const size_t s_digitsPerLimb = 9ul;
+        static const size_t s_additionRoom = std::numeric_limits<size_t>::max() - s_base;
 
         friend class BigInt;
 

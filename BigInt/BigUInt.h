@@ -127,9 +127,18 @@ namespace big {
 
         void square();
 
+        bool isZero() const;
+
         size_t value() const;
 
         void multiplyBySingleDigit(const size_t digit);
+
+        void reduceSizeByOneIfNeeded() {
+            if (mostSignificantDigit() == 0ul) {
+                resize(digitCount() - 1ul);
+            }
+            assert(digitCount() >= 1ul);
+        }
 
         /***************** Static helpers *****************/
         /** Vector **/
@@ -183,10 +192,10 @@ namespace big {
 
         static void multiplyViaIterators(rlIterator resultIt,
                                          const rlIterator resultEnd,
-                                         rlcIterator smallIt,
-                                         const rlcIterator smallEnd,
-                                         rlcIterator largeIt,
-                                         const rlcIterator largeEnd);
+                                         rlcIterator lhsIt,
+                                         const rlcIterator lhsEnd,
+                                         rlcIterator rhsIt,
+                                         const rlcIterator rhsEnd);
 
         static void multiplySortedViaIterators(rlIterator resultIt,
                                                const rlIterator resultEnd,
