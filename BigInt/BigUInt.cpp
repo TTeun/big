@@ -2,16 +2,15 @@
 
 #include "BigInt.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <random>
 
 namespace big {
-    static_assert(BigUInt::s_base <= std::numeric_limits<size_t>::max() / BigUInt::s_base,
+    static_assert(BigUInt::s_maxDigit <= std::numeric_limits<size_t>::max() / BigUInt::s_maxDigit,
                   "s_base^2 should not exceed the maximum size_t");
     static_assert(BigUInt::s_base % 2 == 0, "s_base should be even");
-    static_assert(BigUInt::s_base * BigUInt::s_base > std::numeric_limits<size_t>::max() / BigUInt::s_base,
-                  "s_base^3 should exceed the maximum size_t");
 
     const size_t BigUIntBase::s_maxDigit; // So that it can be used in std::min in BigUInt::divisionSubRoutine
 
@@ -59,15 +58,13 @@ namespace big {
             assert(isWellFormed());
         } else {
             resizeToFit();
+            assert(isWellFormed());
         }
     }
 
     BigUInt::BigUInt(const std::string &val) {
-        static const auto maximumDecimalDigitsInSizeType = static_cast<size_t>(std::log10(
-                std::numeric_limits<size_t>::max()));
-        static const size_t largestMultipleOfTenInSizeType =
-                modPower(10ul, maximumDecimalDigitsInSizeType, std::numeric_limits<size_t>::max());
-
+        static const auto maximumDecimalDigitsInSizeType = 1ul;
+        static const size_t largestMultipleOfTenInSizeType = 10ul;
         m_digits = {0ul};
         size_t startIndex = val.length() % maximumDecimalDigitsInSizeType;
         size_t subVal;
@@ -84,17 +81,25 @@ namespace big {
             *this += subVal;
             startIndex += maximumDecimalDigitsInSizeType;
         }
+
         assert(isWellFormed());
     }
 
     /***************** Operators *****************/
     BigUInt &BigUInt::operator=(const BigUInt &rhs) {
+        assert(rhs.isWellFormed());
         m_digits = rhs.m_digits;
         return *this;
     }
 
     /** Addition **/
     BigUInt &BigUInt::operator+=(const BigUInt &rhs) {
+        // ToDo make function to double numbers;
+        if (this == &rhs) {
+            assert(false);
+            return *this *= 2ul;
+        }
+
         assert(isWellFormed() && rhs.isWellFormed());
         if (rhs.isZero()) {
             return *this;
@@ -107,6 +112,7 @@ namespace big {
             addViaIterators(rlBegin(), rlEnd(), rhs.rlcBegin(), rhs.rlcEnd());
             reduceSizeByOneIfNeeded();
         }
+        assert(isWellFormed());
         return *this;
     }
 
@@ -151,20 +157,16 @@ namespace big {
 
     /** Multiplication **/
     BigUInt &BigUInt::operator*=(const size_t rhs) {
-        if (rhs == 0 || *this == BigUInt(0ul)) {
+        if (rhs == 0 || isZero()) {
             m_digits = {0ul};
             return *this;
         }
         if (rhs != 1ul) {
             if (rhs < s_base) {
                 multiplyBySingleDigit(rhs);
-            } else if (rhs < s_base * s_base) {
-                resize(digitCount() + 2ul);
-                multiplyByDoubleDigitsViaIterators(rlBegin(), rlEnd(), rhs % s_base, rhs / s_base);
-                resizeToFit();
             } else {
                 reserve(digitCount() + 3ul);
-                *this *= BigUInt({rhs % s_base, (rhs / s_base) % s_base, rhs / (s_base * s_base)}, true);
+                *this *= BigUInt({rhs % s_base, (rhs / s_base) % s_base}, true);
             }
         }
         return *this;
@@ -177,24 +179,20 @@ namespace big {
             m_digits = {0ul};
         } else {
             if (this == &rhs) {
-                square();
+                // ToDo make function
+                return *this *= BigUInt(rhs);
             }
 
             switch (rhs.digitCount()) {
                 case 1ul:
                     multiplyBySingleDigit(rhs.leastSignificantDigit());
                     break;
-                case 2ul:
-                    resize(digitCount() + 2ul);
-                    multiplyByDoubleDigitsViaIterators(rlBegin(), rlEnd(), rhs.leastSignificantDigit(),
-                                                       rhs.mostSignificantDigit());
-                    resizeToFit();
-                    break;
                 default:
                     *this = rhs.digitCount() > digitCount() ? multiply(*this, rhs) : multiply(rhs, *this);
                     break;
             }
         }
+        assert(isWellFormed());
         return *this;
     }
 
@@ -299,12 +297,11 @@ namespace big {
         }
         if (mod >= std::numeric_limits<size_t>::max() / mod) {
             auto copy = *this % BigUInt(mod);
-            return copy.leastSignificantDigit() + s_base * copy.digitAt(1) +
-                   s_base * s_base * copy.mostSignificantDigit();
+            return value();
         }
         size_t result = 0ul;
         for (size_t i = 0; i != digitCount(); ++i) {
-            result += (digitAt(i) % mod) * modPower(s_base, i, mod);
+            result += (digitAt(i) % mod) * modPower(s_base % mod, i, mod);
             result %= mod;
         }
         return result;
@@ -393,8 +390,8 @@ namespace big {
 
     BigUInt BigUInt::createRandomFromDecimalDigits(size_t orderOfMagnitude) {
         assert(orderOfMagnitude > 0);
-        const auto numberOfDigits = orderOfMagnitude * (std::log(10) / log(s_base)) + 1ul;
-        auto result = createRandom((size_t) numberOfDigits);
+        const size_t numberOfDigits = orderOfMagnitude * (std::log(10) / log(s_base)) + 1ul;
+        auto result = createRandom(numberOfDigits);
         assert(result.isWellFormed());
         return result;
     }
@@ -410,9 +407,27 @@ namespace big {
         std::stringstream ss;
         ss << *lrcBegin();
         for (auto it = lrcBegin() + 1ul; it != lrcEnd(); ++it) {
-            ss << std::setfill('0') << std::setw(s_digitsPerLimb) << *it;
+            ss << *it;
         }
         return ss.str();
+    }
+
+    std::string BigUInt::toDecimalString() const {
+        std::stringstream ss;
+        auto copy = *this;
+
+        while (copy != 0ul) {
+            size_t decimalDigit = 0ul;
+            for (size_t i = 0ul; i != copy.digitCount(); ++i) {
+                decimalDigit += (modPower(s_base % 10, i, 10ul) * copy.digitAt(i)) % 10ul;
+            }
+            decimalDigit %= 10;
+            ss << decimalDigit;
+            copy /= 10;
+        }
+        auto reversedResult = ss.str();
+        std::reverse(reversedResult.begin(), reversedResult.end());
+        return reversedResult;
     }
 
     std::ostream &operator<<(std::ostream &os, const BigUInt &bigUnsignedInt) {
@@ -427,16 +442,18 @@ namespace big {
     /***************** Internal *****************/
     void BigUInt::init(size_t val) {
         m_digits = {val};
+        resize(32);
         bubble();
+        assert(isWellFormed());
         return;
 
-        if (val < s_base) {
-            m_digits = {val};
-        } else if (val < s_base * s_base) {
-            m_digits = {val % s_base, val / s_base};
-        } else {
-            m_digits = {val % s_base, (val / s_base) % s_base, val / (s_base * s_base)};
-        }
+//        if (val < s_base) {
+//            m_digits = {val};
+//        } else if (val < s_base * s_base) {
+//            m_digits = {val % s_base, val / s_base};
+//        } else {
+//            m_digits = {val % s_base, (val / s_base) % s_base, val / (s_base * s_base)};
+//        }
     }
 
     void BigUInt::bubble(size_t startIndex) {
@@ -557,6 +574,7 @@ namespace big {
 
     void BigUInt::carryUnitAdditionViaIterators(rlIterator thisIt, rlIterator thisEnd) {
         for (;; ++thisIt) {
+            assert(thisIt != thisEnd);
             if (*thisIt < s_maxDigit) {
                 ++*thisIt;
                 return;
@@ -567,61 +585,78 @@ namespace big {
 
     void BigUInt::addViaIterators(rlIterator resultIt, rlIterator resultEnd, rlcIterator rhsIt, rlcIterator rhsEnd) {
         assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
-        bool carry = false;
-        unsigned short addBlockSize = 32u;
-        size_t s0;
-        for (; rhsEnd - rhsIt >= addBlockSize;) {
-            s0 = *resultIt + *rhsIt + carry;
-            *resultIt = s0 % s_base;
-            ++resultIt;
-            ++rhsIt;
-            for (unsigned short dummy = 1u; dummy != addBlockSize; ++dummy) {
-                s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
-                *resultIt = s0 % s_base;
-                ++resultIt;
-                ++rhsIt;
-            }
-            carry = s0 > s_maxDigit;
-        }
+        size_t carry = 0ul;
 
-        switch (rhsEnd - rhsIt) {
-            case 0:
-                break;
-            case 1:
-                s0 = *resultIt + carry + *rhsIt;
-                *resultIt = s0 % s_base;
-                ++resultIt;
-                carry = s0 > s_maxDigit;
-                break;
-            case 2:
-                s0 = *resultIt + carry + *rhsIt;
-                *resultIt = s0 % s_base;
-                ++resultIt;
-                ++rhsIt;
-                s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
-                *resultIt = s0 % s_base;
-                ++resultIt;
-                carry = s0 > s_maxDigit;
-                break;
-            default:
-                s0 = *resultIt + carry + *rhsIt;
-                *resultIt = s0 % s_base;
-                ++resultIt;
-                ++rhsIt;
-                const auto limit = static_cast<unsigned short>(rhsEnd - rhsIt);
-                for (unsigned short dummy = 0ul; dummy < limit; ++dummy) {
-                    s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
-                    *resultIt = s0 % s_base;
-                    ++resultIt;
-                    ++rhsIt;
-                }
-                carry = s0 > s_maxDigit;
-                break;
+        for (; rhsIt != rhsEnd; ++rhsIt, ++resultIt) {
+            *resultIt += *rhsIt + carry;
+            if (*resultIt >= s_base) {
+                carry = *resultIt / s_base;
+                *resultIt &= s_maxDigit;
+            } else {
+                carry = 0ul;
+            }
         }
         if (carry) {
             assert(carry == 1ul);
             carryUnitAdditionViaIterators(resultIt, resultEnd);
         }
+
+//
+//
+//        unsigned short addBlockSize = 2u;
+//        size_t s0;
+//        for (; rhsEnd - rhsIt >= addBlockSize;) {
+//            s0 = *resultIt + *rhsIt + carry;
+//            *resultIt = s0 % s_base;
+//            ++resultIt;
+//            ++rhsIt;
+//            for (unsigned short dummy = 1u; dummy != addBlockSize; ++dummy) {
+//                s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
+//                *resultIt = s0 % s_base;
+//                ++resultIt;
+//                ++rhsIt;
+//            }
+//            carry = s0 > s_maxDigit;
+//        }
+//
+//        switch (rhsEnd - rhsIt) {
+//            case 0:
+//                break;
+//            case 1:
+//                s0 = *resultIt + carry + *rhsIt;
+//                *resultIt = s0 % s_base;
+//                ++resultIt;
+//                carry = s0 > s_maxDigit;
+//                break;
+//            case 2:
+//                s0 = *resultIt + carry + *rhsIt;
+//                *resultIt = s0 % s_base;
+//                ++resultIt;
+//                ++rhsIt;
+//                s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
+//                *resultIt = s0 % s_base;
+//                ++resultIt;
+//                carry = s0 > s_maxDigit;
+//                break;
+//            default:
+//                s0 = *resultIt + carry + *rhsIt;
+//                *resultIt = s0 % s_base;
+//                ++resultIt;
+//                ++rhsIt;
+//                const auto limit = static_cast<unsigned short>(rhsEnd - rhsIt);
+//                for (unsigned short dummy = 0ul; dummy < limit; ++dummy) {
+//                    s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
+//                    *resultIt = s0 % s_base;
+//                    ++resultIt;
+//                    ++rhsIt;
+//                }
+//                carry = s0 > s_maxDigit;
+//                break;
+//        }
+//        if (carry) {
+//            assert(carry == 1ul);
+//            carryUnitAdditionViaIterators(resultIt, resultEnd);
+//        }
     }
 
     void BigUInt::addMultipleViaIterators(

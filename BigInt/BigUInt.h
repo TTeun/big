@@ -115,6 +115,8 @@ namespace big {
         /***************** Output *****************/
         std::string toString() const;
 
+        std::string toDecimalString() const;
+
         friend std::ostream &operator<<(std::ostream &os, const BigUInt &anInt);
 
     private:

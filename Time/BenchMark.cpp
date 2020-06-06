@@ -17,10 +17,10 @@ double BenchMark::multiply(size_t powerOfTen, size_t numberOfRepetitions) {
         BigUInt       b = BigUInt::createRandomFromDecimalDigits(powerOfTen);
         mpz_t         n1;
         mpz_init(n1);
-        mpz_set_str(n1, a.toString().c_str(), 10);
+        mpz_set_str(n1, a.toDecimalString().c_str(), 10);
         mpz_t n2;
         mpz_init(n2);
-        mpz_set_str(n2, b.toString().c_str(), 10);
+        mpz_set_str(n2, b.toDecimalString().c_str(), 10);
         {
             Timer t;
             mpz_mul(n1, n1, n2);
@@ -33,7 +33,7 @@ double BenchMark::multiply(size_t powerOfTen, size_t numberOfRepetitions) {
         }
         mpz_t n3;
         mpz_init(n3);
-        mpz_set_str(n3, b.toString().c_str(), 10);
+        mpz_set_str(n3, b.toDecimalString().c_str(), 10);
         assert(mpz_cmp(n1, n3) == 0);
     }
     return bigTime / gmpTime;
@@ -47,10 +47,10 @@ double BenchMark::add(size_t powerOfTen, size_t numberOfRepetitions) {
         BigUInt       b = BigUInt::createRandomFromDecimalDigits(powerOfTen);
         mpz_t         n1;
         mpz_init(n1);
-        mpz_set_str(n1, a.toString().c_str(), 10);
+        mpz_set_str(n1, a.toDecimalString().c_str(), 10);
         mpz_t n2;
         mpz_init(n2);
-        mpz_set_str(n2, b.toString().c_str(), 10);
+        mpz_set_str(n2, b.toDecimalString().c_str(), 10);
         {
             Timer t;
             mpz_add(n1, n1, n2);
@@ -63,7 +63,7 @@ double BenchMark::add(size_t powerOfTen, size_t numberOfRepetitions) {
         }
         mpz_t n3;
         mpz_init(n3);
-        mpz_set_str(n3, b.toString().c_str(), 10);
+        mpz_set_str(n3, b.toDecimalString().c_str(), 10);
         assert(mpz_cmp(n1, n3) == 0);
     }
     return bigTime / gmpTime;
@@ -77,10 +77,10 @@ double BenchMark::divide(size_t powerOfTen, size_t numberOfRepetitions) {
         BigUInt       b = BigUInt::createRandomFromDecimalDigits(powerOfTen / 2ul);
         mpz_t         n1;
         mpz_init(n1);
-        mpz_set_str(n1, a.toString().c_str(), 10);
+        mpz_set_str(n1, a.toDecimalString().c_str(), 10);
         mpz_t n2;
         mpz_init(n2);
-        mpz_set_str(n2, b.toString().c_str(), 10);
+        mpz_set_str(n2, b.toDecimalString().c_str(), 10);
         {
             Timer t;
             mpz_div(n1, n2, n1);
@@ -93,7 +93,7 @@ double BenchMark::divide(size_t powerOfTen, size_t numberOfRepetitions) {
         }
         mpz_t n3;
         mpz_init(n3);
-        mpz_set_str(n3, b.toString().c_str(), 10);
+        mpz_set_str(n3, b.toDecimalString().c_str(), 10);
         assert(mpz_cmp(n1, n3) == 0);
     }
     return bigTime / gmpTime;
@@ -107,10 +107,10 @@ double BenchMark::modulo(size_t powerOfTen, size_t numberOfRepetitions) {
         BigUInt       b = BigUInt::createRandomFromDecimalDigits(powerOfTen);
         mpz_t         n1;
         mpz_init(n1);
-        mpz_set_str(n1, a.toString().c_str(), 10);
+        mpz_set_str(n1, a.toDecimalString().c_str(), 10);
         mpz_t n2;
         mpz_init(n2);
-        mpz_set_str(n2, b.toString().c_str(), 10);
+        mpz_set_str(n2, b.toDecimalString().c_str(), 10);
         {
             Timer t;
             mpz_mod(n1, n2, n1);
@@ -123,7 +123,7 @@ double BenchMark::modulo(size_t powerOfTen, size_t numberOfRepetitions) {
         }
         mpz_t n3;
         mpz_init(n3);
-        mpz_set_str(n3, b.toString().c_str(), 10);
+        mpz_set_str(n3, b.toDecimalString().c_str(), 10);
         assert(mpz_cmp(n1, n3) == 0);
     }
     return bigTime / gmpTime;

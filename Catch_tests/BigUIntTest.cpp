@@ -8,6 +8,16 @@ using namespace big;
 
 TEST_CASE("BigUInt tests", "[BigUIntTests]") {
 
+    SECTION("Multiplication") {
+        for (size_t dummy = 0; dummy != 200; ++dummy) {
+            size_t a = rand() % std::numeric_limits<size_t>::max();
+            size_t b = rand() % std::numeric_limits<size_t>::max();
+            const auto k = BigUInt(a) * BigUInt(b);
+            CHECK(k == a * b);
+        }
+    }
+
+
     SECTION("Some operations") {
         BigUInt b(BigUIntBase::s_base);
         BigUInt c(BigUIntBase::s_base - 1);
@@ -20,7 +30,7 @@ TEST_CASE("BigUInt tests", "[BigUIntTests]") {
         b += BigUIntBase::s_base - 1ul;
         CHECK(b == BigUInt(BigUIntBase::s_base));
         b *= BigUIntBase::s_base;
-        CHECK(b == BigUInt(BigUIntBase::s_base * BigUIntBase::s_base));
+        CHECK(b == BigUInt(std::vector{0ul, 0ul, 1ul}, true));
         b /= BigUIntBase::s_base;
         CHECK(b == BigUInt(BigUIntBase::s_base));
         b /= BigUIntBase::s_base;
@@ -40,17 +50,14 @@ TEST_CASE("BigUInt tests", "[BigUIntTests]") {
         CHECK(b == 0);
     }
 
-    SECTION("Modulo") {
-        BigUInt b("9945549994547342487362847632487678463291881729");
-        CHECK(b % 1237862343UL == 688386621UL);
-    }
 
     SECTION("Fixed division") {
         const auto a = BigUInt("31988428769874667983746348976357643987568732476328746237847832647832676327573"
                                "28657832647832647832784"
                                "683724678326487326743656329847047017259887150872142");
         const auto b = BigUInt("29371982479821749842772102198749275124736283768732687126321");
-        const auto c = BigUInt("108907966262918718058705949100715069245292669239739335359987042442051400703079828741589494778");
+        const auto c = BigUInt(
+                "108907966262918718058705949100715069245292669239739335359987042442051400703079828741589494778");
         CHECK(a / b == c);
     }
 
@@ -70,14 +77,6 @@ TEST_CASE("BigUInt tests", "[BigUIntTests]") {
         }
     }
 
-    SECTION("Multiplication") {
-        for (size_t dummy = 0; dummy != 200; ++dummy) {
-            size_t a = rand() % std::numeric_limits<size_t>::max();
-            size_t b = rand() % std::numeric_limits<size_t>::max();
-            const auto k = BigUInt(a) * BigUInt(b);
-            CHECK(k == a * b);
-        }
-    }
 
     SECTION("Multiplication with size_t") {
         for (size_t dummy = 0; dummy != 200; ++dummy) {
@@ -95,6 +94,11 @@ TEST_CASE("BigUInt tests", "[BigUIntTests]") {
             const auto k = BigUInt(a) / BigUInt(b);
             CHECK(k == a / b);
         }
+    }
+
+    SECTION("Modulo") {
+        BigUInt b("9945549994547342487362847632487678463291881729");
+        CHECK(b % 1237862343UL == 688386621UL);
     }
 
     SECTION("Power") {
