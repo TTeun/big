@@ -18,6 +18,7 @@ namespace big {
     static size_t ceilingIntegerDivision(size_t a, size_t b) { return (a + b - 1) / b; }
 
     static size_t modPower(size_t base, size_t exponent, size_t mod) {
+        assert(base < BigUIntBase::s_base);
         if (exponent == 0ul) {
             return 1;
         } else if (exponent == 1ul) {
@@ -166,7 +167,7 @@ namespace big {
                 multiplyBySingleDigit(rhs);
             } else {
                 reserve(digitCount() + 3ul);
-                *this *= BigUInt({rhs % s_base, (rhs / s_base) % s_base}, true);
+                *this *= BigUInt({rhs & s_lowBits, (rhs / s_base) & s_lowBits}, true);
             }
         }
         return *this;
@@ -422,7 +423,7 @@ namespace big {
                 decimalDigit += (modPower(s_base % 10, i, 10ul) * copy.digitAt(i)) % 10ul;
             }
             decimalDigit %= 10;
-            ss << decimalDigit;
+            ss << std::setfill('0') << std::setw(1) << decimalDigit;
             copy /= 10;
         }
         auto reversedResult = ss.str();
@@ -441,19 +442,13 @@ namespace big {
 
     /***************** Internal *****************/
     void BigUInt::init(size_t val) {
-        m_digits = {val};
-        resize(32);
-        bubble();
-        assert(isWellFormed());
-        return;
 
-//        if (val < s_base) {
-//            m_digits = {val};
-//        } else if (val < s_base * s_base) {
-//            m_digits = {val % s_base, val / s_base};
-//        } else {
-//            m_digits = {val % s_base, (val / s_base) % s_base, val / (s_base * s_base)};
-//        }
+        if (val < s_base) {
+            m_digits = {val};
+        } else {
+            m_digits = {val & s_lowBits, divideByBase(val)};
+        }
+        assert(isWellFormed());
     }
 
     void BigUInt::bubble(size_t startIndex) {
@@ -464,9 +459,9 @@ namespace big {
         auto it = rlBegin() + startIndex;
         auto next = it + 1;
         for (; next != rlEnd(); ++it, ++next) {
-            if (*it > s_maxDigit) {
-                *next += *it / s_base;
-                *it %= s_base;
+            if (*it & s_highBits) {
+                *next += divideByBase(*it);
+                *it &= s_lowBits;
             }
         }
         resizeToFit();
@@ -499,7 +494,7 @@ namespace big {
             case 1:
                 return leastSignificantDigit();
             case 2:
-                return s_base * mostSignificantDigit() + leastSignificantDigit();
+                return (mostSignificantDigit() << s_bitsPerDigit) + leastSignificantDigit();
             default:
                 assert(false);
         }
@@ -507,10 +502,11 @@ namespace big {
 
     void BigUInt::multiplyBySingleDigit(const size_t digit) {
         assert(digit != 0ul);
+
         switch (digitCount()) {
             case 1: {
                 size_t val = digit * leastSignificantDigit();
-                m_digits = val > s_maxDigit ? std::vector{val % s_base, val / s_base} : std::vector{val};
+                m_digits = val & s_highBits ? std::vector{val & s_lowBits, divideByBase(val)} : std::vector{val};
             }
                 break;
             default:
@@ -542,20 +538,6 @@ namespace big {
                 BigUInt({begin + 2ul * i, end}, false)};
     }
 
-    //    std::pair<BigUInt, BigUInt> BigUInt::recursiveSquareRoot(const BigUInt &val) {
-    //        assert(val.digitCount() % 4ul == 0ul);
-    //        const size_t  i = val.digitCount() / 4;
-    //        const BigUInt a0({val.rlcBegin(), val.rlcBegin() + i}, false);
-    //        BigUInt       a1({val.rlcBegin() + 1ul * i, val.rlcBegin() + 2ul * i}, false);
-    //        const BigUInt a32({val.rlcBegin() + 2ul * i, val.rlcEnd()}, false);
-    //
-    //        std::pair<BigUInt, BigUInt> p = a32.squareRootRemainder();
-    //        a1.append(p.second.m_digits);
-    //        BigUInt quot = longDivision(a1, 2ul * p.first);
-    //        BigUInt u =
-    //        quot.append(p.first.m_digits);
-    //    }
-
     /***************** Static helpers *****************/
     /** Addition **/
     void BigUInt::carryAdditionViaIterators(rlIterator thisIt, rlIterator thisEnd, size_t carry) {
@@ -566,8 +548,8 @@ namespace big {
             if (*thisIt < s_base) {
                 return;
             }
-            carry = (*thisIt) / s_base;
-            *thisIt %= s_base;
+            carry = divideByBase(*thisIt);
+            *thisIt &= s_lowBits;
         }
         assert(false);
     }
@@ -585,78 +567,62 @@ namespace big {
 
     void BigUInt::addViaIterators(rlIterator resultIt, rlIterator resultEnd, rlcIterator rhsIt, rlcIterator rhsEnd) {
         assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
-        size_t carry = 0ul;
+        bool carry = false;
 
-        for (; rhsIt != rhsEnd; ++rhsIt, ++resultIt) {
-            *resultIt += *rhsIt + carry;
-            if (*resultIt >= s_base) {
-                carry = *resultIt / s_base;
-                *resultIt &= s_maxDigit;
-            } else {
-                carry = 0ul;
+        unsigned short addBlockSize = 6u;
+        size_t s0;
+        for (; rhsEnd - rhsIt >= addBlockSize;) {
+            s0 = *resultIt + *rhsIt + carry;
+            *resultIt = s0 & s_lowBits;
+            ++resultIt;
+            ++rhsIt;
+            for (unsigned short dummy = 1u; dummy != addBlockSize; ++dummy) {
+                s0 = *resultIt + *rhsIt + static_cast<bool>((s0 & s_highBits));
+                *resultIt = s0 & s_lowBits;
+                ++resultIt;
+                ++rhsIt;
             }
+            carry = static_cast<bool>((s0 & s_highBits));
+        }
+
+        switch (rhsEnd - rhsIt) {
+            case 0:
+                break;
+            case 1:
+                s0 = *resultIt + carry + *rhsIt;
+                *resultIt = s0 & s_lowBits;
+                ++resultIt;
+                carry = static_cast<bool>((s0 & s_highBits));
+                break;
+            case 2:
+                s0 = *resultIt + carry + *rhsIt;
+                *resultIt = s0 & s_lowBits;
+                ++resultIt;
+                ++rhsIt;
+                s0 = *resultIt + *rhsIt + static_cast<bool>((s0 & s_highBits));
+                *resultIt = s0 & s_lowBits;
+                ++resultIt;
+                carry = static_cast<bool>((s0 & s_highBits));
+                break;
+            default:
+                s0 = *resultIt + carry + *rhsIt;
+                *resultIt = s0 & s_lowBits;
+                ++resultIt;
+                ++rhsIt;
+                const auto limit = static_cast<unsigned short>(rhsEnd - rhsIt);
+                for (unsigned short dummy = 0ul; dummy < limit; ++dummy) {
+                    s0 = *resultIt + *rhsIt + static_cast<bool>((s0 & s_highBits));
+                    *resultIt = s0 & s_lowBits;
+                    ++resultIt;
+                    ++rhsIt;
+                }
+                carry = static_cast<bool>((s0 & s_highBits));
+                break;
         }
         if (carry) {
             assert(carry == 1ul);
             carryUnitAdditionViaIterators(resultIt, resultEnd);
         }
-
-//
-//
-//        unsigned short addBlockSize = 2u;
-//        size_t s0;
-//        for (; rhsEnd - rhsIt >= addBlockSize;) {
-//            s0 = *resultIt + *rhsIt + carry;
-//            *resultIt = s0 % s_base;
-//            ++resultIt;
-//            ++rhsIt;
-//            for (unsigned short dummy = 1u; dummy != addBlockSize; ++dummy) {
-//                s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
-//                *resultIt = s0 % s_base;
-//                ++resultIt;
-//                ++rhsIt;
-//            }
-//            carry = s0 > s_maxDigit;
-//        }
-//
-//        switch (rhsEnd - rhsIt) {
-//            case 0:
-//                break;
-//            case 1:
-//                s0 = *resultIt + carry + *rhsIt;
-//                *resultIt = s0 % s_base;
-//                ++resultIt;
-//                carry = s0 > s_maxDigit;
-//                break;
-//            case 2:
-//                s0 = *resultIt + carry + *rhsIt;
-//                *resultIt = s0 % s_base;
-//                ++resultIt;
-//                ++rhsIt;
-//                s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
-//                *resultIt = s0 % s_base;
-//                ++resultIt;
-//                carry = s0 > s_maxDigit;
-//                break;
-//            default:
-//                s0 = *resultIt + carry + *rhsIt;
-//                *resultIt = s0 % s_base;
-//                ++resultIt;
-//                ++rhsIt;
-//                const auto limit = static_cast<unsigned short>(rhsEnd - rhsIt);
-//                for (unsigned short dummy = 0ul; dummy < limit; ++dummy) {
-//                    s0 = *resultIt + *rhsIt + (s0 > s_maxDigit);
-//                    *resultIt = s0 % s_base;
-//                    ++resultIt;
-//                    ++rhsIt;
-//                }
-//                carry = s0 > s_maxDigit;
-//                break;
-//        }
-//        if (carry) {
-//            assert(carry == 1ul);
-//            carryUnitAdditionViaIterators(resultIt, resultEnd);
-//        }
     }
 
     void BigUInt::addMultipleViaIterators(
@@ -671,51 +637,51 @@ namespace big {
         size_t s0;
         for (; rhsEnd - rhsIt >= addBlockSize;) {
             s0 = *resultIt + *rhsIt * multiplier + carry;
-            *resultIt = s0 % s_base;
+            *resultIt = s0 & s_lowBits;
             ++resultIt;
             ++rhsIt;
             for (unsigned short dummy = 1u; dummy != addBlockSize; ++dummy) {
-                s0 = *resultIt + *rhsIt * multiplier + (s0 / s_base);
-                *resultIt = s0 % s_base;
+                s0 = *resultIt + *rhsIt * multiplier + divideByBase(s0);
+                *resultIt = s0 & s_lowBits;
                 ++resultIt;
                 ++rhsIt;
             }
-            carry = s0 / s_base;
+            carry = divideByBase(s0);
         }
         switch (rhsEnd - rhsIt) {
             case 0:
                 break;
             case 1:
                 s0 = *resultIt + *rhsIt * multiplier + carry;
-                *resultIt = s0 % s_base;
+                *resultIt = s0 & s_lowBits;
                 ++resultIt;
                 ++rhsIt;
-                carry = s0 / s_base;
+                carry = divideByBase(s0);
                 break;
             case 2:
                 s0 = *resultIt + *rhsIt * multiplier + carry;
-                *resultIt = s0 % s_base;
+                *resultIt = s0 & s_lowBits;
                 ++resultIt;
                 ++rhsIt;
-                s0 = *resultIt + *rhsIt * multiplier + (s0 / s_base);
-                *resultIt = s0 % s_base;
+                s0 = *resultIt + *rhsIt * multiplier + divideByBase(s0);
+                *resultIt = s0 & s_lowBits;
                 ++resultIt;
                 ++rhsIt;
-                carry = s0 / s_base;
+                carry = divideByBase(s0);
                 break;
             default:
                 s0 = *resultIt + *rhsIt * multiplier + carry;
-                *resultIt = s0 % s_base;
+                *resultIt = s0 & s_lowBits;
                 ++resultIt;
                 ++rhsIt;
                 const auto limit = static_cast<unsigned short>(rhsEnd - rhsIt);
                 for (unsigned short dummy = 0ul; dummy < limit; ++dummy) {
-                    s0 = *resultIt + *rhsIt * multiplier + (s0 / s_base);
-                    *resultIt = s0 % s_base;
+                    s0 = *resultIt + *rhsIt * multiplier + divideByBase(s0);
+                    *resultIt = s0 & s_lowBits;
                     ++resultIt;
                     ++rhsIt;
                 }
-                carry = (s0 / s_base);
+                carry = divideByBase(s0);
                 break;
         }
         if (carry > 0UL) {
@@ -767,32 +733,12 @@ namespace big {
         size_t carry = 0ul;
         for (; resultIt != resultEnd; ++resultIt) {
             *resultIt = *resultIt * rhs + carry;
-            if (*resultIt > s_maxDigit) {
-                carry = *resultIt / s_base;
-                *resultIt -= carry * s_base;
+            if (*resultIt & s_highBits) {
+                carry = divideByBase(*resultIt);
+                *resultIt -= (carry << s_bitsPerDigit);
             } else {
                 carry = 0ul;
             }
-        }
-    }
-
-    void BigUInt::multiplyByDoubleDigitsViaIterators(rlIterator resultIt,
-                                                     const rlIterator resultEnd,
-                                                     const size_t least,
-                                                     const size_t most) {
-        size_t previousVal = 0ul;
-        size_t currentVal;
-        size_t carry = 0ul;
-        for (; resultIt != resultEnd; ++resultIt) {
-            currentVal = *resultIt;
-            *resultIt = carry + currentVal * least + previousVal * most;
-            if (*resultIt > s_maxDigit) {
-                carry = *resultIt / s_base;
-                *resultIt %= s_base;
-            } else {
-                carry = 0ul;
-            }
-            previousVal = currentVal;
         }
     }
 

@@ -173,11 +173,6 @@ namespace big {
         static void
         multiplyBySingleDigitViaIterators(rlIterator resultIt, const rlIterator resultEnd, const size_t rhs);
 
-        static void multiplyByDoubleDigitsViaIterators(rlIterator resultIt,
-                                                       const rlIterator resultEnd,
-                                                       const size_t least,
-                                                       const size_t most);
-
         static void karatsubaMultiplyViaIterators(rlIterator resultIt,
                                                   const rlIterator resultEnd,
                                                   rlcIterator smallIt,
