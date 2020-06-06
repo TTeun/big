@@ -7,6 +7,12 @@
 #include <random>
 
 namespace big {
+    static_assert(BigUInt::s_base <= std::numeric_limits<size_t>::max() / BigUInt::s_base,
+                  "s_base^2 should not exceed the maximum size_t");
+    static_assert(BigUInt::s_base % 2 == 0, "s_base should be even");
+    static_assert(BigUInt::s_base * BigUInt::s_base > std::numeric_limits<size_t>::max() / BigUInt::s_base,
+                  "s_base^3 should exceed the maximum size_t");
+
     const size_t BigUIntBase::s_maxDigit; // So that it can be used in std::min in BigUInt::divisionSubRoutine
 
     /***************** Some static functions *****************/
@@ -420,11 +426,10 @@ namespace big {
 
     /***************** Internal *****************/
     void BigUInt::init(size_t val) {
-        static_assert(s_base <= std::numeric_limits<size_t>::max() / s_base,
-                      "s_base^2 should not exceed the maximum size_t");
-        static_assert(s_base % 2 == 0, "s_base should be even");
-        static_assert(s_base * s_base > std::numeric_limits<size_t>::max() / s_base,
-                      "s_base^3 should exceed the maximum size_t");
+        m_digits = {val};
+        bubble();
+        return;
+
         if (val < s_base) {
             m_digits = {val};
         } else if (val < s_base * s_base) {
