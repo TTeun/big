@@ -40,12 +40,12 @@ TEST_CASE("BigUInt tests", "[BigUIntTests]") {
     SECTION("Sum of natural numbers") {
         BigUInt sumOfNaturalNumbers("5000050000");
         BigUInt b(0);
-        for (size_t i = 0; i != 100001; ++i) {
-            b += BigUInt(i);
+        for (size_t dummy = 0; dummy != 100001; ++dummy) {
+            b += BigUInt(dummy);
         }
         CHECK(b == sumOfNaturalNumbers);
-        for (size_t i = 0; i != 100001; ++i) {
-            b -= BigUInt(i);
+        for (size_t dummy = 0; dummy != 100001; ++dummy) {
+            b -= BigUInt(dummy);
         }
         CHECK(b == 0);
     }

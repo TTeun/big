@@ -129,22 +129,22 @@ double BenchMark::modulo(size_t powerOfTen, size_t numberOfRepetitions) {
     return bigTime / gmpTime;
 }
 
-void BenchMark::run(const std::vector<std::pair<size_t, size_t>> &digitCountAndRepetitions) {
+void BenchMark::run(const std::vector<std::pair<size_t, size_t>>& digitCountAndRepetitions) {
     std::cout << "Decimal digits:\t";
     for (auto it : digitCountAndRepetitions) {
         std::cout << std::setfill(' ') << std::setw(15) << it.first;
     }
     std::cout << '\n';
 
-    std::cout << "Add:\t\t\t";
-    for (auto it : digitCountAndRepetitions) {
-        std::cout << std::setfill(' ') << std::setw(15) << add(it.first, it.second);
-    }
-    std::cout << '\n';
-
     std::cout << "Multiply:\t\t";
     for (auto it : digitCountAndRepetitions) {
         std::cout << std::setfill(' ') << std::setw(15) << multiply(it.first, it.second);
+    }
+    std::cout << '\n';
+
+    std::cout << "Add:\t\t\t";
+    for (auto it : digitCountAndRepetitions) {
+        std::cout << std::setfill(' ') << std::setw(15) << add(it.first, it.second);
     }
     std::cout << '\n';
 
