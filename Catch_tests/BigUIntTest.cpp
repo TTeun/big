@@ -172,8 +172,8 @@ TEST_CASE("BigUInt tests", "[BigUIntTests]") {
                                         "000000000000000000000000000000000000000000000000000000000000000000"
                                         "000000000000000000000000000");
         BigUInt b = 1;
-        for (size_t i = 1; i != 1001; ++i) {
-            b *= i;
+        for (size_t dummy = 1; dummy != 1001; ++dummy) {
+            b *= dummy;
         }
         CHECK(b == thousandFactorial);
     }

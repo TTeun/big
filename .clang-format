@@ -82,7 +82,7 @@ SpaceBeforeCpp11BracedList: false
 DerivePointerAlignment: false
 ExperimentalAutoDetectBinPacking: false
 ForEachMacros:   [ foreach, Q_FOREACH, BOOST_FOREACH ]
-IndentCaseLabels: false
+IndentCaseLabels: true
 FixNamespaceComments: true
 IndentWrappedFunctionNames: false
 KeepEmptyLinesAtTheStartOfBlocks: false

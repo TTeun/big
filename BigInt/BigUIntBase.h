@@ -35,7 +35,7 @@ protected:
 
     /***************** Const functions *****************/
     [[nodiscard]] inline size_t digitAt(size_t index) const {
-        assert(index < m_digits.size());
+        // assert(index < m_digits.size());
         return m_digits.at(index);
     }
     [[nodiscard]] inline size_t leastSignificantDigit() const { return m_digits.front(); }
@@ -43,7 +43,7 @@ protected:
     [[nodiscard]] inline size_t digitCount() const { return m_digits.size(); }
     [[nodiscard]] inline size_t mostSignificantDigit() const { return m_digits.back(); }
     [[nodiscard]] inline bool   isCorrectlySized() const {
-        assert(digitCount() > 0);
+        // assert(digitCount() > 0);
         return mostSignificantDigit() == 0ul ? (digitCount() == 1ul) : true;
     }
 

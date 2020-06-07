@@ -136,15 +136,15 @@ void BenchMark::run(const std::vector<std::pair<size_t, size_t>>& digitCountAndR
     }
     std::cout << '\n';
 
-    std::cout << "Multiply:\t\t";
-    for (auto it : digitCountAndRepetitions) {
-        std::cout << std::setfill(' ') << std::setw(15) << multiply(it.first, it.second);
-    }
-    std::cout << '\n';
-
     std::cout << "Add:\t\t\t";
     for (auto it : digitCountAndRepetitions) {
         std::cout << std::setfill(' ') << std::setw(15) << add(it.first, it.second);
+    }
+    std::cout << '\n';
+
+    std::cout << "Multiply:\t\t";
+    for (auto it : digitCountAndRepetitions) {
+        std::cout << std::setfill(' ') << std::setw(15) << multiply(it.first, it.second);
     }
     std::cout << '\n';
 

@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <ostream>
+#include <tuple>
 
 namespace big {
 
@@ -22,11 +23,13 @@ public:
     BigUInt(size_t val) { init(val); }
     BigUInt(BigUInt&& other) noexcept : BigUIntBase(std::move(other.m_digits)) { }
     BigUInt(const BigUInt& other) : BigUIntBase(std::vector<size_t>(other.m_digits.begin(), other.m_digits.end())) {
-        assert(isWellFormed());
+        // assert(isWellFormed());
     }
     BigUInt(std::vector<size_t>&& digits, bool isAlreadyCorrectlySized);
     explicit BigUInt(const std::string& val);
-    BigUInt(rlcIterator it, rlcIterator endIt) : BigUIntBase({it, endIt}) { assert(isWellFormed()); }
+    BigUInt(rlcIterator it, rlcIterator endIt) : BigUIntBase({it, endIt}) {
+        // assert(isWellFormed());
+    }
 
     /***************** Operators *****************/
     /** Assignment **/
@@ -109,23 +112,27 @@ public:
 private:
     /***************** Internal *****************/
     inline void init(size_t val) {
-        m_digits = (val & s_highBits) ? std::vector<size_t>{val & s_lowBits, divideByBase(val)} : std::vector<size_t>{val};
+        if (val & s_highBits) {
+            m_digits = std::vector<size_t>{val & s_lowBits, divideByBase(val)};
+        } else {
+            m_digits = std::vector<size_t>{val};
+        }
     }
-    void                      bubble(size_t startIndex = 0ul);
-    void                      divideByLessThanBase(size_t factor);
-    void                      square();
+    void multiplyBySingleDigit(const size_t digit);
+    void bubble(size_t startIndex = 0ul);
+    void divideByLessThanBase(size_t factor);
+    void square();
+
     [[nodiscard]] inline bool isZero() const {
-        assert(isWellFormed());
+        // assert(isWellFormed());
         return mostSignificantDigit() == 0ul;
     }
     [[nodiscard]] inline size_t value() const {
-        size_t result = leastSignificantDigit();
-        return (digitCount() > 1ul) ? (result + (mostSignificantDigit() << s_bitsPerDigit)) : result;
+        return (digitCount() > 1ul) ? (leastSignificantDigit() + (mostSignificantDigit() << s_bitsPerDigit)) : leastSignificantDigit();
     }
-    void        multiplyBySingleDigit(const size_t digit);
     inline void reduceSizeByOneIfNeeded() {
         if (mostSignificantDigit() == 0ul) { resize(digitCount() - 1ul); }
-        assert(digitCount() >= 1ul);
+        // assert(digitCount() >= 1ul);
     }
     inline void reduceSizeByTwoIfNeeded() {
         if (mostSignificantDigit() == 0ul) {
@@ -136,12 +143,15 @@ private:
 
     /***************** Static helpers *****************/
     /** Vector **/
-    inline void append(const std::vector<size_t>& highDigits) {
-        m_digits.resize(digitCount() + highDigits.size());
-        std::copy(highDigits.cbegin(), highDigits.cend(), m_digits.begin() + digitCount() - highDigits.size());
+    static inline std::tuple<BigUInt, BigUInt, BigUInt, BigUInt> splitFour(rlcIterator begin, rlcIterator end, size_t i) {
+        return {BigUInt({begin, begin + i}, false),
+                BigUInt({begin + i, begin + 2ul * i}, false),
+                BigUInt({begin + 2ul * i, begin + 3ul * i}, false),
+                BigUInt({begin + 3ul * i, end}, false)};
     }
-    static std::tuple<BigUInt, BigUInt, BigUInt, BigUInt> splitFour(rlcIterator begin, rlcIterator end, size_t i);
-    static std::tuple<BigUInt, BigUInt, BigUInt>          splitThree(rlcIterator begin, rlcIterator end, size_t i);
+    static inline std::tuple<BigUInt, BigUInt, BigUInt> splitThree(rlcIterator begin, rlcIterator end, size_t i) {
+        return {BigUInt({begin, begin + i}, false), BigUInt({begin + i, begin + 2ul * i}, false), BigUInt({begin + 2ul * i, end}, false)};
+    }
 
     /** Addition **/
     static void carryAdditionViaIterators(rlIterator resultIt, size_t carry);
