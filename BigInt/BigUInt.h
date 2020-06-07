@@ -110,7 +110,11 @@ namespace big {
 
         static BigUInt createRandomFromDecimalDigits(size_t orderOfMagnitude);
 
-        static BigUInt createWithRoom(size_t digitCount);
+        static inline BigUInt createWithRoom(size_t digitCount) {
+            BigUInt result;
+            result.reserve(digitCount);
+            return result;
+        }
 
         /***************** Output *****************/
         std::string toString() const;
@@ -153,9 +157,9 @@ namespace big {
         static std::tuple<BigUInt, BigUInt, BigUInt> splitThree(rlcIterator begin, rlcIterator end, size_t i);
 
         /** Addition **/
-        static void carryAdditionViaIterators(rlIterator thisIt, const rlIterator thisEnd, size_t carry);
+        static void carryAdditionViaIterators(rlIterator resultIt, const rlIterator resultEnd, size_t carry);
 
-        static void carryUnitAdditionViaIterators(rlIterator thisIt, const rlIterator thisEnd);
+        static void carryUnitAdditionViaIterators(rlIterator resultIt, const rlIterator resultEnd);
 
         static void
         addViaIterators(rlIterator resultIt, const rlIterator resultEnd, rlcIterator rhsIt, const rlcIterator rhsEnd);

@@ -19,7 +19,7 @@ namespace big {
     static size_t ceilingIntegerDivision(size_t a, size_t b) { return (a + b - 1) / b; }
 
     static size_t modPower(size_t base, size_t exponent, size_t mod) {
-        assert(base < BigUIntBase::s_base);
+        // assert(base < BigUIntBase::s_base);
         if (exponent == 0ul) {
             return 1;
         } else if (exponent == 1ul) {
@@ -48,7 +48,7 @@ namespace big {
                 *thisIt %= BigUIntBase::s_base;
             }
         }
-        assert(*next <= BigUIntBase::s_maxDigit);
+        // assert(*next <= BigUIntBase::s_maxDigit);
     }
 
     /***************** Constructors *****************/
@@ -57,10 +57,10 @@ namespace big {
             init(0);
         }
         if (isAlreadyCorrectlySized) {
-            assert(isWellFormed());
+            // assert(isWellFormed());
         } else {
             resizeToFit();
-            assert(isWellFormed());
+            // assert(isWellFormed());
         }
     }
 
@@ -84,12 +84,12 @@ namespace big {
             startIndex += maximumDecimalDigitsInSizeType;
         }
 
-        assert(isWellFormed());
+        // assert(isWellFormed());
     }
 
     /***************** Operators *****************/
     BigUInt &BigUInt::operator=(const BigUInt &rhs) {
-        assert(rhs.isWellFormed());
+        // assert(rhs.isWellFormed());
         m_digits = rhs.m_digits;
         return *this;
     }
@@ -98,11 +98,11 @@ namespace big {
     BigUInt &BigUInt::operator+=(const BigUInt &rhs) {
         // ToDo make function to double numbers;
         if (this == &rhs) {
-            assert(false);
+            // assert(false);
             return *this *= 2ul;
         }
 
-        assert(isWellFormed() && rhs.isWellFormed());
+        // assert(isWellFormed() && rhs.isWellFormed());
         if (rhs.isZero()) {
             return *this;
         } else if (isZero()) {
@@ -114,7 +114,7 @@ namespace big {
             addViaIterators(rlBegin(), rlEnd(), rhs.rlcBegin(), rhs.rlcEnd());
             reduceSizeByOneIfNeeded();
         }
-        assert(isWellFormed());
+        // assert(isWellFormed());
         return *this;
     }
 
@@ -145,7 +145,7 @@ namespace big {
 
     /** Subtraction **/
     BigUInt &BigUInt::operator-=(const BigUInt &rhs) {
-        assert(rhs <= *this);
+        // assert(rhs <= *this);
 
         subtractViaIterators(rlBegin(), rlEnd(), rhs.rlcBegin(), rhs.rlcEnd());
         resizeToFit();
@@ -175,8 +175,8 @@ namespace big {
     }
 
     BigUInt &BigUInt::operator*=(const BigUInt &rhs) {
-        assert(isWellFormed());
-        assert(rhs.isWellFormed());
+        // assert(isWellFormed());
+        // assert(rhs.isWellFormed());
         if (rhs.isZero()) {
             m_digits = {0ul};
         } else {
@@ -194,7 +194,7 @@ namespace big {
                     break;
             }
         }
-        assert(isWellFormed());
+        // assert(isWellFormed());
         return *this;
     }
 
@@ -231,7 +231,7 @@ namespace big {
     }
 
     BigUInt BigUInt::operator/(const BigUInt &divisor) const {
-        assert(divisor != 0ul);
+        // assert(divisor != 0ul);
         if (&divisor == this) {
             return BigUInt(1);
         }
@@ -276,7 +276,7 @@ namespace big {
     }
 
     BigUInt &BigUInt::operator%=(const BigUInt &mod) {
-        assert(mod != 0ul);
+        // assert(mod != 0ul);
 
         if (*this < mod) {
             return *this;
@@ -323,20 +323,20 @@ namespace big {
 
     /** Comparison **/
     bool BigUInt::operator==(const BigUInt &rhs) const {
-        assert(isWellFormed());
-        assert(rhs.isWellFormed());
+        // assert(isWellFormed());
+        // assert(rhs.isWellFormed());
 
         return m_digits == rhs.m_digits;
     }
 
     bool BigUInt::operator<(const BigUInt &rhs) const {
-        assert(isWellFormed() && rhs.isWellFormed());
+        // assert(isWellFormed() && rhs.isWellFormed());
 
         return lessThanViaIterators(lrcBegin(), lrcEnd(), rhs.lrcBegin(), rhs.lrcEnd());
     }
 
     bool BigUInt::operator<=(const BigUInt &rhs) const {
-        assert(isWellFormed() && rhs.isCorrectlySized());
+        // assert(isWellFormed() && rhs.isCorrectlySized());
 
         if (digitCount() != rhs.digitCount()) {
             return digitCount() < rhs.digitCount();
@@ -376,7 +376,7 @@ namespace big {
 
     /***************** Builders *****************/
     BigUInt BigUInt::createRandom(size_t numberOfDigits) {
-        assert(numberOfDigits > 0ul);
+        // assert(numberOfDigits > 0ul);
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<size_t> dis(0, s_maxDigit);
@@ -391,16 +391,10 @@ namespace big {
     }
 
     BigUInt BigUInt::createRandomFromDecimalDigits(size_t orderOfMagnitude) {
-        assert(orderOfMagnitude > 0);
+        // assert(orderOfMagnitude > 0);
         const size_t numberOfDigits = orderOfMagnitude * (std::log(10) / log(s_base)) + 1ul;
         auto result = createRandom(numberOfDigits);
-        assert(result.isWellFormed());
-        return result;
-    }
-
-    BigUInt BigUInt::createWithRoom(size_t digitCount) {
-        BigUInt result;
-        result.reserve(digitCount);
+        // assert(result.isWellFormed());
         return result;
     }
 
@@ -456,33 +450,35 @@ namespace big {
 
     /***************** Internal *****************/
     void BigUInt::init(size_t val) {
-
-        if (val < s_base) {
-            m_digits = {val};
-        } else {
+        if (val & s_highBits) {
             m_digits = {val & s_lowBits, divideByBase(val)};
+        } else {
+            m_digits = {val};
         }
-        assert(isWellFormed());
     }
 
     void BigUInt::bubble(size_t startIndex) {
         assert(not m_digits.empty());
         assert(startIndex < digitCount());
-        resize(digitCount() + 3ul);
+        assert(isWellFormed());
 
         auto it = rlBegin() + startIndex;
-        auto next = it + 1;
-        for (; next != rlEnd(); ++it, ++next) {
+        size_t carry = 0ul;
+        for (; it != rlEnd(); ++it) {
+            *it += carry;
             if (*it & s_highBits) {
-                *next += divideByBase(*it);
+                carry = divideByBase(*it);
                 *it &= s_lowBits;
+            } else {
+                carry = 0ul;
             }
         }
-        resizeToFit();
+        assert(carry == 0ul);
+        assert(isWellFormed());
     }
 
     void BigUInt::divideByLessThanBase(size_t factor) {
-        assert(factor < s_base);
+        assert(not(factor & s_highBits));
         size_t carry = 0ul;
         auto thisIt = lrBegin();
         for (; thisIt != lrEnd(); ++thisIt) {
@@ -500,33 +496,27 @@ namespace big {
     }
 
     bool BigUInt::isZero() const {
-        return digitCount() == 1ul && leastSignificantDigit() == 0ul;
+//        assert(isWellFormed());
+        return mostSignificantDigit() == 0ul;
     }
 
     size_t BigUInt::value() const {
-        switch (digitCount()) {
-            case 1:
-                return leastSignificantDigit();
-            case 2:
-                return (mostSignificantDigit() << s_bitsPerDigit) + leastSignificantDigit();
-            default:
-                assert(false);
+        assert(digitCount() <= 2ul);
+        size_t result = leastSignificantDigit();
+        if (digitCount() > 1ul) {
+            result += (mostSignificantDigit() << s_bitsPerDigit);
         }
+        return result;
     }
 
     void BigUInt::multiplyBySingleDigit(const size_t digit) {
-        assert(digit != 0ul);
-
-        switch (digitCount()) {
-            case 1: {
-                size_t val = digit * leastSignificantDigit();
-                m_digits = val & s_highBits ? std::vector{val & s_lowBits, divideByBase(val)} : std::vector{val};
-            }
-                break;
-            default:
-                resize(digitCount() + 1ul);
-                multiplyBySingleDigitViaIterators(rlBegin(), rlEnd(), digit);
-                reduceSizeByOneIfNeeded();
+        if (digitCount() == 1ul) {
+            size_t val = digit * leastSignificantDigit();
+            m_digits = val & s_highBits ? std::vector{val & s_lowBits, divideByBase(val)} : std::vector{val};
+        } else {
+            resize(digitCount() + 1ul);
+            multiplyBySingleDigitViaIterators(rlBegin(), rlEnd(), digit);
+            reduceSizeByOneIfNeeded();
         }
     }
 
@@ -534,11 +524,11 @@ namespace big {
     void BigUInt::append(const std::vector<size_t> &highDigits) {
         m_digits.resize(digitCount() + highDigits.size());
         std::copy(highDigits.cbegin(), highDigits.cend(), m_digits.begin() + digitCount() - highDigits.size());
-        assert(isWellFormed());
+        // assert(isWellFormed());
     }
 
     std::tuple<BigUInt, BigUInt, BigUInt, BigUInt> BigUInt::splitFour(rlcIterator begin, rlcIterator end, size_t i) {
-        assert(3ul * i < static_cast<size_t>(end - begin));
+        // assert(3ul * i < static_cast<size_t>(end - begin));
         return {BigUInt({begin, begin + i}, false),
                 BigUInt({begin + i, begin + 2ul * i}, false),
                 BigUInt({begin + 2ul * i, begin + 3ul * i}, false),
@@ -546,7 +536,7 @@ namespace big {
     }
 
     std::tuple<BigUInt, BigUInt, BigUInt> BigUInt::splitThree(rlcIterator begin, rlcIterator end, size_t i) {
-        assert(2ul * i < static_cast<size_t>(end - begin));
+        // assert(2ul * i < static_cast<size_t>(end - begin));
         return {BigUInt({begin, begin + i}, false),
                 BigUInt({begin + i, begin + 2ul * i}, false),
                 BigUInt({begin + 2ul * i, end}, false)};
@@ -554,36 +544,39 @@ namespace big {
 
     /***************** Static helpers *****************/
     /** Addition **/
-    void BigUInt::carryAdditionViaIterators(rlIterator thisIt, rlIterator thisEnd, size_t carry) {
-        assert(carry != 0ul);
-        assert(carry + s_base < std::numeric_limits<size_t>::max());
-        for (;; ++thisIt) {
-            *thisIt += carry;
-            if (*thisIt < s_base) {
-                return;
+    void BigUInt::carryAdditionViaIterators(rlIterator resultIt, rlIterator resultEnd, size_t carry) {
+        // assert(carry != 0ul);
+        if (carry == 1ul) {
+            carryUnitAdditionViaIterators(resultIt, resultEnd);
+        } else {
+            // assert(carry + s_base < std::numeric_limits<size_t>::max());
+            for (;; ++resultIt) {
+                // assert(resultIt != resultEnd);
+                *resultIt += carry;
+                if (not(*resultIt & s_highBits)) {
+                    return;
+                }
+                carry = divideByBase(*resultIt);
+                *resultIt &= s_lowBits;
             }
-            carry = divideByBase(*thisIt);
-            *thisIt &= s_lowBits;
         }
-        assert(false);
     }
 
-    void BigUInt::carryUnitAdditionViaIterators(rlIterator thisIt, rlIterator thisEnd) {
-        for (;; ++thisIt) {
-            assert(thisIt != thisEnd);
-            if (*thisIt < s_maxDigit) {
-                ++*thisIt;
+    void BigUInt::carryUnitAdditionViaIterators(rlIterator resultIt, rlIterator resultEnd) {
+        for (; resultIt != resultEnd; ++resultIt) {
+            if (*resultIt < s_maxDigit) {
+                ++*resultIt;
                 return;
             }
-            *thisIt = 0ul;
+            *resultIt = 0ul;
         }
     }
 
     void BigUInt::addViaIterators(rlIterator resultIt, rlIterator resultEnd, rlcIterator rhsIt, rlcIterator rhsEnd) {
-        assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
-        bool carry = false;
+        // assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
+        unsigned short carry = false;
 
-        unsigned short addBlockSize = 6u;
+        unsigned short addBlockSize = 5u;
         size_t s0;
         for (; rhsEnd - rhsIt >= addBlockSize;) {
             s0 = *resultIt + *rhsIt + carry;
@@ -591,12 +584,12 @@ namespace big {
             ++resultIt;
             ++rhsIt;
             for (unsigned short dummy = 1u; dummy != addBlockSize; ++dummy) {
-                s0 = *resultIt + *rhsIt + static_cast<bool>((s0 & s_highBits));
+                s0 = *resultIt + *rhsIt + (s0 & s_highBits ? 1u : 0u);
                 *resultIt = s0 & s_lowBits;
                 ++resultIt;
                 ++rhsIt;
             }
-            carry = static_cast<bool>((s0 & s_highBits));
+            carry = (s0 & s_highBits ? 1u : 0u);
         }
 
         switch (rhsEnd - rhsIt) {
@@ -606,17 +599,17 @@ namespace big {
                 s0 = *resultIt + carry + *rhsIt;
                 *resultIt = s0 & s_lowBits;
                 ++resultIt;
-                carry = static_cast<bool>((s0 & s_highBits));
+                carry = (s0 & s_highBits ? 1u : 0u);
                 break;
             case 2:
                 s0 = *resultIt + carry + *rhsIt;
                 *resultIt = s0 & s_lowBits;
                 ++resultIt;
                 ++rhsIt;
-                s0 = *resultIt + *rhsIt + static_cast<bool>((s0 & s_highBits));
+                s0 = *resultIt + *rhsIt + (s0 & s_highBits ? 1u : 0u);
                 *resultIt = s0 & s_lowBits;
                 ++resultIt;
-                carry = static_cast<bool>((s0 & s_highBits));
+                carry = (s0 & s_highBits ? 1u : 0u);
                 break;
             default:
                 s0 = *resultIt + carry + *rhsIt;
@@ -625,16 +618,16 @@ namespace big {
                 ++rhsIt;
                 const auto limit = static_cast<unsigned short>(rhsEnd - rhsIt);
                 for (unsigned short dummy = 0ul; dummy < limit; ++dummy) {
-                    s0 = *resultIt + *rhsIt + static_cast<bool>((s0 & s_highBits));
+                    s0 = *resultIt + *rhsIt + (s0 & s_highBits ? 1u : 0u);
                     *resultIt = s0 & s_lowBits;
                     ++resultIt;
                     ++rhsIt;
                 }
-                carry = static_cast<bool>((s0 & s_highBits));
+                carry = (s0 & s_highBits ? 1u : 0u);
                 break;
         }
         if (carry) {
-            assert(carry == 1ul);
+            // assert(carry == 1ul);
             carryUnitAdditionViaIterators(resultIt, resultEnd);
         }
     }
@@ -644,8 +637,8 @@ namespace big {
         if (multiplier == 0ul) {
             return;
         }
-        assert(multiplier < s_base);
-        assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
+        // assert(multiplier < s_base);
+        // assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
         size_t carry = 0ul;
         static const unsigned short addBlockSize = 10u;
         size_t s0;
@@ -704,7 +697,7 @@ namespace big {
     }
 
     void BigUInt::subtractViaIterators(rlIterator thisIt, rlIterator thisEnd, rlcIterator rhsIt, rlcIterator rhsEnd) {
-        assert(std::distance(thisIt, thisEnd) >= std::distance(rhsIt, rhsEnd));
+        // assert(std::distance(thisIt, thisEnd) >= std::distance(rhsIt, rhsEnd));
         size_t carry = 0ul;
         for (; rhsIt != rhsEnd; ++thisIt, ++rhsIt) {
             if (*thisIt >= *rhsIt + carry) {
@@ -718,7 +711,7 @@ namespace big {
         }
         if (carry != 0ul) {
             while (*thisIt == 0ul) {
-                assert(thisIt != thisEnd);
+                // assert(thisIt != thisEnd);
                 *thisIt = s_maxDigit;
                 ++thisIt;
             }
@@ -729,8 +722,8 @@ namespace big {
     /** Multiplication **/
     BigUInt BigUInt::multiply(const BigUInt &smaller, const BigUInt &larger) {
         BigUInt result;
-        assert(smaller.isWellFormed() && larger.isWellFormed());
-        assert(smaller.digitCount() <= larger.digitCount());
+        // assert(smaller.isWellFormed() && larger.isWellFormed());
+        // assert(smaller.digitCount() <= larger.digitCount());
         result.resize(smaller.digitCount() + larger.digitCount() + 1ul);
         multiplySortedViaIterators(
                 result.rlBegin(), result.rlEnd(), smaller.rlcBegin(), smaller.rlcEnd(), larger.rlcBegin(),
@@ -739,7 +732,7 @@ namespace big {
             result.resize(result.digitCount() - 1ul);
             result.reduceSizeByOneIfNeeded();
         }
-        assert(result.isWellFormed());
+        // assert(result.isWellFormed());
         return result;
     }
 
@@ -762,10 +755,10 @@ namespace big {
                                                 rlcIterator smallEnd,
                                                 rlcIterator largeIt,
                                                 rlcIterator largeEnd) {
-        assert((largeEnd - largeIt) >= (smallEnd - smallIt));
+        // assert((largeEnd - largeIt) >= (smallEnd - smallIt));
         const auto m = static_cast<size_t>(smallEnd - smallIt);
         const auto n = static_cast<size_t>(largeEnd - largeIt);
-        assert(m >= s_karatsubaLowerLimit);
+        // assert(m >= s_karatsubaLowerLimit);
         const size_t splitIndex = m / 2ul;
 
         BigUInt high1(largeIt + splitIndex, largeEnd);
@@ -811,7 +804,7 @@ namespace big {
                                                      rlcIterator largeIt,
                                                      rlcIterator largeEnd) {
         const auto m = static_cast<size_t>(largeEnd - largeIt);
-        assert(m >= s_karatsubaLowerLimit);
+        // assert(m >= s_karatsubaLowerLimit);
         const auto n = static_cast<size_t>(smallEnd - smallIt);
         const size_t splitIndex = m / 2ul;
 
@@ -831,7 +824,7 @@ namespace big {
                                              const rlcIterator largeEnd) {
         const auto smallSize = static_cast<size_t>(smallEnd - smallIt);
         const auto largeSize = static_cast<size_t>(largeEnd - largeIt);
-        assert(largeSize >= smallSize);
+        // assert(largeSize >= smallSize);
 
         if (largeSize < s_karatsubaLowerLimit) {
             schoolMultiply(resultIt, resultEnd, smallIt, smallEnd, largeIt, largeEnd);
@@ -869,7 +862,7 @@ namespace big {
                              rlcIterator smallEnd,
                              rlcIterator largeIt,
                              rlcIterator largeEnd) {
-        assert((largeEnd - largeIt) >= (smallEnd - smallIt));
+        // assert((largeEnd - largeIt) >= (smallEnd - smallIt));
         const size_t i = (smallEnd - smallIt) / 3ul;
 
         const auto[m0, m1, m2] = static_cast<std::tuple<BigInt, BigInt, BigInt>>(splitThree(smallIt, smallEnd, i));
@@ -913,7 +906,7 @@ namespace big {
                              rlcIterator smallEnd,
                              rlcIterator largeIt,
                              rlcIterator largeEnd) {
-        assert((largeEnd - largeIt) >= (smallEnd - smallIt));
+        // assert((largeEnd - largeIt) >= (smallEnd - smallIt));
         const size_t i = (smallEnd - smallIt) / 4ul;
 
         const auto[m0, m1, m2, m3] = static_cast<std::tuple<BigInt, BigInt, BigInt, BigInt>>(splitFour(smallIt,
@@ -963,7 +956,7 @@ namespace big {
                                  rlcIterator smallEnd,
                                  rlcIterator largeIt,
                                  rlcIterator largeEnd) {
-        assert((largeEnd - largeIt) >= (smallEnd - smallIt));
+        // assert((largeEnd - largeIt) >= (smallEnd - smallIt));
         for (size_t i = 0; smallIt < smallEnd; ++i) {
             addMultipleViaIterators(resultIt + i, resultEnd, largeIt, largeEnd, *smallIt);
             ++smallIt;
@@ -979,12 +972,12 @@ namespace big {
         if (lessThanViaIterators(leftToRightConstIt, leftToRightConstEnd, divisor.lrcBegin(), divisor.lrcEnd())) {
             return 0ul;
         }
-        assert(divisor != 0ul);
-        assert(divisor.mostSignificantDigit() * 2ul >= BigUInt::s_base);
+        // assert(divisor != 0ul);
+        // assert(divisor.mostSignificantDigit() * 2ul >= BigUInt::s_base);
         const size_t n = divisor.digitCount();
         const auto m = static_cast<size_t>(leftToRightConstEnd - leftToRightConstIt);
-        assert(m <= n + 1ul);
-        assert(m >= n);
+        // assert(m <= n + 1ul);
+        // assert(m >= n);
 
         size_t correction = 0ul;
         while (not lessThanShiftedRhsViaIterators(
@@ -1037,8 +1030,8 @@ namespace big {
     }
 
     BigUInt BigUInt::longDivisionAfterAdjustingDivisor(BigUInt &dividend, const BigUInt &divisor) {
-        assert(divisor <= dividend);
-        assert(divisor.mostSignificantDigit() * 2ul >= BigUInt::s_base);
+        // assert(divisor <= dividend);
+        // assert(divisor.mostSignificantDigit() * 2ul >= BigUInt::s_base);
 
         size_t m = dividend.digitCount();
         const size_t n = divisor.digitCount();
