@@ -26,9 +26,7 @@ public:
     friend class BigInt;
 
     /***************** Utility members *****************/
-    static inline size_t divideByBase(size_t val) {
-        return (val & s_highBits) >> s_bitsPerDigit;
-    }
+    [[nodiscard]] static inline size_t divideByBase(size_t val) { return (val & s_highBits) >> s_bitsPerDigit; }
 
 protected:
     /***************** Constructors *****************/
@@ -40,63 +38,31 @@ protected:
         assert(index < m_digits.size());
         return m_digits.at(index);
     }
-    [[nodiscard]] inline size_t leastSignificantDigit() const {
-        return m_digits.front();
-    }
+    [[nodiscard]] inline size_t leastSignificantDigit() const { return m_digits.front(); }
     [[nodiscard]] bool          isWellFormed() const;
-    [[nodiscard]] inline size_t digitCount() const {
-        return m_digits.size();
-    }
-    [[nodiscard]] inline size_t mostSignificantDigit() const {
-        return m_digits.back();
-    }
-    [[nodiscard]] inline bool isCorrectlySized() const {
+    [[nodiscard]] inline size_t digitCount() const { return m_digits.size(); }
+    [[nodiscard]] inline size_t mostSignificantDigit() const { return m_digits.back(); }
+    [[nodiscard]] inline bool   isCorrectlySized() const {
         assert(digitCount() > 0);
         return mostSignificantDigit() == 0ul ? (digitCount() == 1ul) : true;
     }
 
     /***************** Iterators *****************/
-    [[nodiscard]] inline lrIterator lrBegin() {
-        return m_digits.rbegin();
-    }
-    [[nodiscard]] inline lrIterator lrEnd() {
-        return m_digits.rend();
-    }
-    [[nodiscard]] inline rlIterator rlBegin() {
-        return m_digits.begin();
-    }
-    [[nodiscard]] inline rlIterator rlEnd() {
-        return m_digits.end();
-    }
-    [[nodiscard]] inline lrcIterator lrcBegin() const {
-        return m_digits.crbegin();
-    }
-    [[nodiscard]] inline lrcIterator lrcEnd() const {
-        return m_digits.crend();
-    }
-    [[nodiscard]] inline rlcIterator rlcBegin() const {
-        return m_digits.cbegin();
-    }
-    [[nodiscard]] inline rlcIterator rlcEnd() const {
-        return m_digits.cend();
-    }
+    [[nodiscard]] inline lrIterator  lrBegin() { return m_digits.rbegin(); }
+    [[nodiscard]] inline lrIterator  lrEnd() { return m_digits.rend(); }
+    [[nodiscard]] inline rlIterator  rlBegin() { return m_digits.begin(); }
+    [[nodiscard]] inline rlIterator  rlEnd() { return m_digits.end(); }
+    [[nodiscard]] inline lrcIterator lrcBegin() const { return m_digits.crbegin(); }
+    [[nodiscard]] inline lrcIterator lrcEnd() const { return m_digits.crend(); }
+    [[nodiscard]] inline rlcIterator rlcBegin() const { return m_digits.cbegin(); }
+    [[nodiscard]] inline rlcIterator rlcEnd() const { return m_digits.cend(); }
 
     /***************** Vector functions *****************/
-    inline void reserve(size_t size) {
-        m_digits.reserve(size);
-    }
-    inline void resizeToFit() {
-        resizeToFitVector(m_digits);
-    }
-    inline void resize(size_t size) {
-        m_digits.resize(size);
-    }
-    static void         resizeToFitVector(std::vector<size_t>& digits);
-    inline static void  copyViaIterators(rlcIterator begin, rlcIterator end, rlIterator resultIt) {
-        for (; begin != end; ++begin, ++resultIt) {
-            *resultIt = *begin;
-        }
-    }
+    inline void reserve(size_t size) { m_digits.reserve(size); }
+    inline void resizeToFit() { resizeToFitVector(m_digits); }
+    inline void resize(size_t size) { m_digits.resize(size); }
+    static void resizeToFitVector(std::vector<size_t>& digits);
+    static void copyViaIterators(rlcIterator begin, rlcIterator end, rlIterator resultIt);
 
     /***************** Data members *****************/
     std::vector<size_t> m_digits;

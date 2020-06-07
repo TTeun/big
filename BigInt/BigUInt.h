@@ -18,21 +18,15 @@ public:
 
 public:
     /***************** Constructors *****************/
-    BigUInt() {
-        init(0);
-    }
-    BigUInt(size_t val) {
-        init(val);
-    }
+    BigUInt() { init(0); }
+    BigUInt(size_t val) { init(val); }
     BigUInt(BigUInt&& other) noexcept : BigUIntBase(std::move(other.m_digits)) { }
     BigUInt(const BigUInt& other) : BigUIntBase(std::vector<size_t>(other.m_digits.begin(), other.m_digits.end())) {
         assert(isWellFormed());
     }
     BigUInt(std::vector<size_t>&& digits, bool isAlreadyCorrectlySized);
     explicit BigUInt(const std::string& val);
-    BigUInt(rlcIterator it, rlcIterator endIt) : BigUIntBase({it, endIt}) {
-        assert(isWellFormed());
-    }
+    BigUInt(rlcIterator it, rlcIterator endIt) : BigUIntBase({it, endIt}) { assert(isWellFormed()); }
 
     /***************** Operators *****************/
     /** Assignment **/
@@ -75,36 +69,24 @@ public:
 
     /** Comparison **/
     inline bool operator==(const BigUInt& rhs) const {
-        assert(isWellFormed());
-        assert(rhs.isWellFormed());
+        //        assert(isWellFormed());
+        //        assert(rhs.isWellFormed());
         return m_digits == rhs.m_digits;
     }
-    bool operator!=(const BigUInt& rhs) const {
-        return !(rhs == *this);
-    }
+    bool operator!=(const BigUInt& rhs) const { return !(rhs == *this); }
     bool operator<(const BigUInt& rhs) const {
-        assert(isWellFormed());
-        assert(rhs.isWellFormed());
+        //        assert(isWellFormed());
+        //        assert(rhs.isWellFormed());
         return lessThanViaIterators(lrcBegin(), lrcEnd(), rhs.lrcBegin(), rhs.lrcEnd());
     }
-    bool operator>(const BigUInt& rhs) const {
-        return rhs < *this;
-    }
+    bool operator>(const BigUInt& rhs) const { return rhs < *this; }
     bool operator<=(const BigUInt& rhs) const;
-    bool operator>=(const BigUInt& rhs) const {
-        return !(*this < rhs);
-    }
+    bool operator>=(const BigUInt& rhs) const { return !(*this < rhs); }
 
     /** Friends **/
-    friend BigUInt operator+(size_t lhs, const BigUInt& rhs) {
-        return rhs + lhs;
-    }
-    friend BigUInt operator-(size_t lhs, const BigUInt& rhs) {
-        return BigUInt(lhs) - rhs;
-    }
-    friend BigUInt operator*(size_t lhs, const BigUInt& rhs) {
-        return rhs * lhs;
-    }
+    friend BigUInt operator+(size_t lhs, const BigUInt& rhs) { return rhs + lhs; }
+    friend BigUInt operator-(size_t lhs, const BigUInt& rhs) { return BigUInt(lhs) - rhs; }
+    friend BigUInt operator*(size_t lhs, const BigUInt& rhs) { return rhs * lhs; }
     friend BigUInt power(const BigUInt& base, size_t exponent);
 
     /***************** Builders *****************/
@@ -169,16 +151,10 @@ private:
     static void subtractViaIterators(rlIterator thisIt, rlcIterator rhsIt, rlcIterator rhsEnd);
 
     /** Multiplication **/
-    inline static BigUInt multiply(const BigUInt& smaller, const BigUInt& larger) {
-        BigUInt result;
-        result.resize(smaller.digitCount() + larger.digitCount());
-        multiplySortedViaIterators(result.rlBegin(), smaller.rlcBegin(), smaller.rlcEnd(), larger.rlcBegin(), larger.rlcEnd());
-        result.reduceSizeByTwoIfNeeded();
-        return result;
-    }
-    static void multiplyBySingleDigitViaIterators(rlIterator resultIt, const rlIterator resultEnd, const size_t rhs);
-    static void karatsubaMultiplyViaIterators(
-        rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, rlcIterator largeEnd);
+    static BigUInt multiply(const BigUInt& smaller, const BigUInt& larger);
+    static void    multiplyBySingleDigitViaIterators(rlIterator resultIt, const rlIterator resultEnd, const size_t rhs);
+    static void    karatsubaMultiplyViaIterators(
+           rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, rlcIterator largeEnd);
     static void splitOneMultiplicationViaIterators(
         rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, rlcIterator largeEnd);
     inline static void
@@ -193,12 +169,7 @@ private:
         rlIterator resultIt, rlcIterator smallIt, const rlcIterator smallEnd, rlcIterator largeIt, const rlcIterator largeEnd);
     static void toomCook_3(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, rlcIterator largeEnd);
     static void toomCook_4(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, rlcIterator largeEnd);
-    static void schoolMultiply(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, size_t largeSize) {
-        for (size_t i = 0; i != largeSize; ++i) {
-            if (*largeIt != 0ul) { addMultipleViaIterators(resultIt + i, smallIt, smallEnd, *largeIt); }
-            ++largeIt;
-        }
-    }
+    static void schoolMultiply(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, size_t largeSize);
 
     /** Division **/
     static size_t  divisionSubRoutine(const lrcIterator leftToRightConstIt,

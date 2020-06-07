@@ -43,7 +43,7 @@ static size_t modPower(size_t base, size_t exponent, size_t mod) {
 }
 
 void bubbleViaIterators(rlIterator thisIt, const rlIterator& thisEnd) {
-    size_t carry = 0ul;
+    unsigned int carry = 0ul;
     for (; thisIt != thisEnd; ++thisIt) {
         *thisIt += carry;
         if (*thisIt & BigUIntBase::s_highBits) {
@@ -185,10 +185,6 @@ BigUInt BigUInt::operator*(const BigUInt& rhs) const {
     }
 }
 
-//    std::pair<BigUInt, BigUInt> BigUInt::squareRootRemainder() const {
-//        return recursiveSquareRoot(BigUInt(shiftedCopy((-digitCount()) % 4), true));
-//    }
-
 /** Division **/
 BigUInt& BigUInt::operator/=(size_t divisor) {
     if (divisor < s_base) {
@@ -224,7 +220,7 @@ BigUInt BigUInt::operator/(const BigUInt& divisor) const {
 }
 
 BigUInt BigUInt::operator/(size_t divisor) const {
-    if (divisor < s_base) {
+    if (not(divisor & s_highBits)) {
         auto copy = *this;
         copy.divideByLessThanBase(divisor);
         return copy;
@@ -271,14 +267,11 @@ size_t BigUInt::operator%(size_t mod) const {
 
 BigUInt BigUInt::operator%(const BigUInt& mod) const {
     auto copy = *this;
-    if (mod.digitCount() == 1ul) {
-        copy %= mod.leastSignificantDigit();
-    } else if (mod.digitCount() == 2ul) {
-        copy %= mod.mostSignificantDigit() * s_base + mod.leastSignificantDigit();
-    } else {
-        copy %= mod;
+    switch (mod.digitCount()) {
+    case 1ul: return copy %= mod.leastSignificantDigit();
+    case 2ul: return copy %= mod.mostSignificantDigit() * s_base + mod.leastSignificantDigit();
+    default: return copy %= mod;
     }
-    return copy;
 }
 
 /** Comparison **/
@@ -297,22 +290,22 @@ bool BigUInt::operator<=(const BigUInt& rhs) const {
 
 /** Friends **/
 BigUInt power(const BigUInt& base, size_t exponent) {
-    if (exponent == 0ul) {
-        return BigUInt(1);
-    } else if (exponent == 1ul) {
-        return BigUInt(base);
-    }
-    BigUInt aux(1);
-    BigUInt copy(base);
+    switch (exponent) {
+    case 0ul: return BigUInt(1);
+    case 1ul: return BigUInt(base);
+    default:
+        BigUInt aux(1);
+        BigUInt copy(base);
 
-    while (exponent > 1ul) {
-        if (exponent % 2ul == 1ul) { aux *= copy; }
-        exponent /= 2ul;
-        copy.square();
-    }
-    copy *= aux;
+        while (exponent > 1ul) {
+            if (exponent % 2ul == 1ul) { aux *= copy; }
+            exponent /= 2ul;
+            copy.square();
+        }
+        copy *= aux;
 
-    return copy;
+        return copy;
+    }
 }
 
 /***************** Builders *****************/
@@ -379,8 +372,8 @@ void BigUInt::bubble(size_t startIndex) {
     // assert(startIndex < digitCount());
     // assert(isWellFormed());
 
-    auto   it    = rlBegin() + startIndex;
-    size_t carry = 0ul;
+    auto         it    = rlBegin() + startIndex;
+    unsigned int carry = 0ul;
     for (; it != rlEnd(); ++it) {
         *it += carry;
         if (*it & s_highBits) {
@@ -396,8 +389,8 @@ void BigUInt::bubble(size_t startIndex) {
 
 void BigUInt::divideByLessThanBase(size_t factor) {
     // assert(not(factor & s_highBits));
-    size_t carry  = 0ul;
-    auto   thisIt = lrBegin();
+    unsigned int carry  = 0ul;
+    auto         thisIt = lrBegin();
     for (; thisIt != lrEnd(); ++thisIt) {
         *thisIt += carry * s_base;
         carry = *thisIt % factor;
@@ -439,7 +432,7 @@ std::tuple<BigUInt, BigUInt, BigUInt> BigUInt::splitThree(rlcIterator begin, rlc
 /***************** Static helpers *****************/
 /** Addition **/
 void BigUInt::carryAdditionViaIterators(rlIterator resultIt, size_t carry) {
-    // assert(carry != 0ul);
+    assert(carry != 0ul);
     if (carry == 1ul) {
         carryUnitAdditionViaIterators(resultIt);
     } else {
@@ -584,7 +577,7 @@ void BigUInt::addMultipleViaIterators(rlIterator resultIt, rlcIterator rhsIt, rl
 
 void BigUInt::subtractViaIterators(rlIterator thisIt, rlcIterator rhsIt, rlcIterator rhsEnd) {
     // assert(std::distance(thisIt, thisEnd) >= std::distance(rhsIt, rhsEnd));
-    size_t carry = 0ul;
+    unsigned int carry = 0ul;
     for (; rhsIt != rhsEnd; ++thisIt, ++rhsIt) {
         if (*thisIt >= *rhsIt + carry) {
             *thisIt -= *rhsIt + carry;
@@ -605,8 +598,16 @@ void BigUInt::subtractViaIterators(rlIterator thisIt, rlcIterator rhsIt, rlcIter
 }
 
 /** Multiplication **/
+BigUInt BigUInt::multiply(const BigUInt& smaller, const BigUInt& larger) {
+    BigUInt result;
+    result.resize(smaller.digitCount() + larger.digitCount());
+    multiplySortedViaIterators(result.rlBegin(), smaller.rlcBegin(), smaller.rlcEnd(), larger.rlcBegin(), larger.rlcEnd());
+    result.reduceSizeByTwoIfNeeded();
+    return result;
+}
+
 void BigUInt::multiplyBySingleDigitViaIterators(rlIterator resultIt, const rlIterator resultEnd, const size_t rhs) {
-    size_t carry = 0ul;
+    unsigned int carry = 0ul;
     for (; resultIt != resultEnd; ++resultIt) {
         *resultIt = *resultIt * rhs + carry;
         if (*resultIt & s_highBits) {
@@ -775,6 +776,13 @@ void BigUInt::toomCook_4(rlIterator resultIt, rlcIterator smallIt, rlcIterator s
     addViaIterators(resultIt + 6ul * i, n3.magnitude().rlcBegin(), n3.magnitude().rlcEnd());
 }
 
+void BigUInt::schoolMultiply(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, size_t largeSize) {
+    for (size_t i = 0; i != largeSize; ++i) {
+        if (*largeIt != 0ul) { addMultipleViaIterators(resultIt + i, smallIt, smallEnd, *largeIt); }
+        ++largeIt;
+    }
+}
+
 /** Division **/
 size_t BigUInt::divisionSubRoutine(const lrcIterator leftToRightConstIt,
                                    const lrcIterator leftToRightConstEnd,
@@ -783,7 +791,7 @@ size_t BigUInt::divisionSubRoutine(const lrcIterator leftToRightConstIt,
     if (lessThanViaIterators(leftToRightConstIt, leftToRightConstEnd, divisor.lrcBegin(), divisor.lrcEnd())) { return 0ul; }
     assert(divisor != 0ul);
     assert(divisor.mostSignificantDigit() * 2ul >= BigUInt::s_base);
-    const size_t divisorSize = divisor.digitCount();
+    const size_t divisorSize  = divisor.digitCount();
     const auto   dividendSize = static_cast<size_t>(leftToRightConstEnd - leftToRightConstIt);
     assert(dividendSize <= divisorSize + 1ul);
     assert(dividendSize >= divisorSize);
@@ -823,15 +831,14 @@ BigUInt BigUInt::longDivision(BigUInt& dividend, const BigUInt& divisor) {
     if (factor > 1) {
         dividend *= factor;
         return longDivisionAfterAdjustingDivisor(dividend, factor * divisor);
-        dividend /= factor;
     } else {
         return longDivisionAfterAdjustingDivisor(dividend, divisor);
     }
 }
 
 BigUInt BigUInt::longDivisionAfterAdjustingDivisor(BigUInt& dividend, const BigUInt& divisor) {
-    // assert(divisor <= dividend);
-    // assert(divisor.mostSignificantDigit() * 2ul >= BigUInt::s_base);
+    assert(divisor <= dividend);
+    assert(divisor.mostSignificantDigit() * 2ul >= BigUInt::s_base);
 
     size_t       m = dividend.digitCount();
     const size_t n = divisor.digitCount();
