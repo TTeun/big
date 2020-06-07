@@ -21,8 +21,15 @@ namespace big {
         static const size_t s_lowBits = (1ul << s_bitsPerDigit) - 1ul;
         static const size_t s_highBits = std::numeric_limits<size_t>::max() ^s_lowBits;
         static const size_t s_additionRoom = std::numeric_limits<size_t>::max() - s_base;
+        static const size_t s_decimalsInDigit = 9ul;
+        static const size_t s_tenPowerInDigit = 1000000000ul;
 
         friend class BigInt;
+
+        /***************** Utility members *****************/
+        static inline size_t divideByBase(size_t val) {
+            return (val & s_highBits) >> s_bitsPerDigit;
+        }
 
     protected:
         /***************** Constructors *****************/
@@ -78,11 +85,6 @@ namespace big {
             for (; begin != end; ++begin, ++resultIt) {
                 *resultIt = *begin;
             }
-        }
-
-        /***************** Utility members *****************/
-        static inline size_t divideByBase(size_t val) {
-            return (val & s_highBits) >> s_bitsPerDigit;
         }
 
         /***************** Data members *****************/

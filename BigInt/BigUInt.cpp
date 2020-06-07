@@ -41,55 +41,50 @@ namespace big {
     }
 
     void bubbleViaIterators(rlIterator thisIt, const rlIterator &thisEnd) {
-        auto next = thisIt + 1ul;
-        for (; next != thisEnd; ++thisIt, ++next) {
+        size_t carry = 0ul;
+        for (; thisIt != thisEnd; ++thisIt) {
+            *thisIt += carry;
             if (*thisIt > BigUIntBase::s_maxDigit) {
-                *next += *thisIt / BigUIntBase::s_base;
-                *thisIt %= BigUIntBase::s_base;
+                carry = BigUIntBase::divideByBase(*thisIt);
+                *thisIt &= BigUIntBase::s_lowBits;
+            } else {
+                carry = 0ul;
             }
         }
-        // assert(*next <= BigUIntBase::s_maxDigit);
+        assert(carry == 0ul);
     }
 
     /***************** Constructors *****************/
     BigUInt::BigUInt(std::vector<size_t> &&digits, bool isAlreadyCorrectlySized) : BigUIntBase(std::move(digits)) {
         if (m_digits.empty()) {
-            init(0);
+            m_digits = {0ul};
         }
-        if (isAlreadyCorrectlySized) {
-            // assert(isWellFormed());
-        } else {
+        if (not isAlreadyCorrectlySized) {
             resizeToFit();
-            // assert(isWellFormed());
         }
     }
 
     BigUInt::BigUInt(const std::string &val) {
-        static const auto maximumDecimalDigitsInSizeType = 1ul;
-        static const size_t largestMultipleOfTenInSizeType = 10ul;
         m_digits = {0ul};
-        size_t startIndex = val.length() % maximumDecimalDigitsInSizeType;
+        size_t startIndex = val.length() % s_decimalsInDigit;
         size_t subVal;
         if (startIndex != 0ul) {
-            *this *= largestMultipleOfTenInSizeType;
+            *this *= s_tenPowerInDigit;
             std::istringstream iss(val.substr(0, startIndex));
             iss >> subVal;
             *this += subVal;
         }
-        while (startIndex + maximumDecimalDigitsInSizeType <= val.length()) {
-            *this *= largestMultipleOfTenInSizeType;
-            std::istringstream iss(val.substr(startIndex, maximumDecimalDigitsInSizeType));
+        while (startIndex + s_decimalsInDigit <= val.length()) {
+            *this *= s_tenPowerInDigit;
+            std::istringstream iss(val.substr(startIndex, s_decimalsInDigit));
             iss >> subVal;
             *this += subVal;
-            startIndex += maximumDecimalDigitsInSizeType;
+            startIndex += s_decimalsInDigit;
         }
-
-        // assert(isWellFormed());
     }
 
     /***************** Operators *****************/
     BigUInt &BigUInt::operator=(const BigUInt &rhs) {
-        // assert(rhs.isWellFormed());
         m_digits = rhs.m_digits;
         return *this;
     }
@@ -111,7 +106,7 @@ namespace big {
             return *this += rhs.value();
         } else {
             resize(std::max(digitCount(), rhs.digitCount()) + 1ul);
-            addViaIterators(rlBegin(), rlEnd(), rhs.rlcBegin(), rhs.rlcEnd());
+            addViaIterators(rlBegin(), rhs.rlcBegin(), rhs.rlcEnd());
             reduceSizeByOneIfNeeded();
         }
         // assert(isWellFormed());
@@ -125,7 +120,7 @@ namespace big {
             return *this = rhs;
         } else if (rhs <= s_additionRoom) {
             resize(digitCount() + 1ul);
-            carryAdditionViaIterators(rlBegin(), rlEnd(), rhs);
+            carryAdditionViaIterators(rlBegin(), rhs);
             reduceSizeByOneIfNeeded();
         } else {
             *this += BigUInt(rhs);
@@ -147,7 +142,7 @@ namespace big {
     BigUInt &BigUInt::operator-=(const BigUInt &rhs) {
         // assert(rhs <= *this);
 
-        subtractViaIterators(rlBegin(), rlEnd(), rhs.rlcBegin(), rhs.rlcEnd());
+        subtractViaIterators(rlBegin(), rhs.rlcBegin(), rhs.rlcEnd());
         resizeToFit();
         return *this;
     }
@@ -161,13 +156,11 @@ namespace big {
     BigUInt &BigUInt::operator*=(const size_t rhs) {
         if (rhs == 0 || isZero()) {
             m_digits = {0ul};
-            return *this;
-        }
-        if (rhs != 1ul) {
+        } else if (rhs != 1ul) {
             if (rhs < s_base) {
                 multiplyBySingleDigit(rhs);
             } else {
-                reserve(digitCount() + 3ul);
+                reserve(digitCount() + 2ul);
                 *this *= BigUInt({rhs & s_lowBits, (rhs / s_base) & s_lowBits}, true);
             }
         }
@@ -544,14 +537,14 @@ namespace big {
 
     /***************** Static helpers *****************/
     /** Addition **/
-    void BigUInt::carryAdditionViaIterators(rlIterator resultIt, rlIterator resultEnd, size_t carry) {
+    void BigUInt::carryAdditionViaIterators(rlIterator resultIt, size_t carry) {
         // assert(carry != 0ul);
         if (carry == 1ul) {
-            carryUnitAdditionViaIterators(resultIt, resultEnd);
+            carryUnitAdditionViaIterators(resultIt);
         } else {
             // assert(carry + s_base < std::numeric_limits<size_t>::max());
             for (;; ++resultIt) {
-                // assert(resultIt != resultEnd);
+//                assert(resultIt != resultEnd);
                 *resultIt += carry;
                 if (not(*resultIt & s_highBits)) {
                     return;
@@ -562,8 +555,9 @@ namespace big {
         }
     }
 
-    void BigUInt::carryUnitAdditionViaIterators(rlIterator resultIt, rlIterator resultEnd) {
-        for (; resultIt != resultEnd; ++resultIt) {
+    void BigUInt::carryUnitAdditionViaIterators(rlIterator resultIt) {
+        for (;; ++resultIt) {
+//            assert(resultIt != resultEnd);
             if (*resultIt < s_maxDigit) {
                 ++*resultIt;
                 return;
@@ -572,11 +566,10 @@ namespace big {
         }
     }
 
-    void BigUInt::addViaIterators(rlIterator resultIt, rlIterator resultEnd, rlcIterator rhsIt, rlcIterator rhsEnd) {
+    void BigUInt::addViaIterators(rlIterator resultIt, rlcIterator rhsIt, rlcIterator rhsEnd) {
         // assert(std::distance(resultIt, resultEnd) >= std::distance(rhsIt, rhsEnd) + 1l);
-        unsigned short carry = false;
-
-        unsigned short addBlockSize = 5u;
+        unsigned short carry = 0ul;
+        static const unsigned short addBlockSize = 5u;
         size_t s0;
         for (; rhsEnd - rhsIt >= addBlockSize;) {
             s0 = *resultIt + *rhsIt + carry;
@@ -628,12 +621,12 @@ namespace big {
         }
         if (carry) {
             // assert(carry == 1ul);
-            carryUnitAdditionViaIterators(resultIt, resultEnd);
+            carryUnitAdditionViaIterators(resultIt);
         }
     }
 
-    void BigUInt::addMultipleViaIterators(
-            rlIterator resultIt, rlIterator resultEnd, rlcIterator rhsIt, rlcIterator rhsEnd, size_t multiplier) {
+    void
+    BigUInt::addMultipleViaIterators(rlIterator resultIt, rlcIterator rhsIt, rlcIterator rhsEnd, size_t multiplier) {
         if (multiplier == 0ul) {
             return;
         }
@@ -692,11 +685,11 @@ namespace big {
                 break;
         }
         if (carry > 0UL) {
-            carryAdditionViaIterators(resultIt, resultEnd, carry);
+            carryAdditionViaIterators(resultIt, carry);
         }
     }
 
-    void BigUInt::subtractViaIterators(rlIterator thisIt, rlIterator thisEnd, rlcIterator rhsIt, rlcIterator rhsEnd) {
+    void BigUInt::subtractViaIterators(rlIterator thisIt, rlcIterator rhsIt, rlcIterator rhsEnd) {
         // assert(std::distance(thisIt, thisEnd) >= std::distance(rhsIt, rhsEnd));
         size_t carry = 0ul;
         for (; rhsIt != rhsEnd; ++thisIt, ++rhsIt) {
@@ -728,10 +721,8 @@ namespace big {
         multiplySortedViaIterators(
                 result.rlBegin(), result.rlEnd(), smaller.rlcBegin(), smaller.rlcEnd(), larger.rlcBegin(),
                 larger.rlcEnd());
-        if (result.mostSignificantDigit() == 0ul) {
-            result.resize(result.digitCount() - 1ul);
-            result.reduceSizeByOneIfNeeded();
-        }
+
+        result.reduceSizeByTwoIfNeeded();
         // assert(result.isWellFormed());
         return result;
     }
@@ -749,12 +740,8 @@ namespace big {
         }
     }
 
-    void BigUInt::karatsubaMultiplyViaIterators(rlIterator resultIt,
-                                                rlIterator resultEnd,
-                                                rlcIterator smallIt,
-                                                rlcIterator smallEnd,
-                                                rlcIterator largeIt,
-                                                rlcIterator largeEnd) {
+    void BigUInt::karatsubaMultiplyViaIterators(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd,
+                                                rlcIterator largeIt, rlcIterator largeEnd) {
         // assert((largeEnd - largeIt) >= (smallEnd - smallIt));
         const auto m = static_cast<size_t>(smallEnd - smallIt);
         const auto n = static_cast<size_t>(largeEnd - largeIt);
@@ -777,8 +764,8 @@ namespace big {
         high1.resize(high1.digitCount() + 1ul);
         high2.resize(high2.digitCount() + 1ul);
 
-        addViaIterators(high1.rlBegin(), high1.rlEnd(), largeIt, largeIt + splitIndex);
-        addViaIterators(high2.rlBegin(), high2.rlEnd(), smallIt, smallIt + splitIndex);
+        addViaIterators(high1.rlBegin(), largeIt, largeIt + splitIndex);
+        addViaIterators(high2.rlBegin(), smallIt, smallIt + splitIndex);
 
         BigUInt z1;
         z1.resize(m % 2ul + n + 3ul);
@@ -789,12 +776,12 @@ namespace big {
         multiplyViaIterators(z1.rlBegin(), z1.rlEnd(), high1.rlcBegin(), high1.rlcEnd(), high2.rlcBegin(),
                              high2.rlcEnd());
 
-        subtractViaIterators(z1.rlBegin(), z1.rlEnd(), z2.rlcBegin(), z2.rlcEnd());
-        subtractViaIterators(z1.rlBegin(), z1.rlEnd(), z0.rlcBegin(), z0.rlcEnd());
+        subtractViaIterators(z1.rlBegin(), z2.rlcBegin(), z2.rlcEnd());
+        subtractViaIterators(z1.rlBegin(), z0.rlcBegin(), z0.rlcEnd());
 
         BigUIntBase::copy(z0.rlcBegin(), z0.rlcEnd(), resultIt);
-        addViaIterators(resultIt + splitIndex, resultEnd, z1.rlcBegin(), z1.rlcEnd());
-        addViaIterators(resultIt + 2ul * splitIndex, resultEnd, z2.rlcBegin(), z2.rlcEnd());
+        addViaIterators(resultIt + splitIndex, z1.rlcBegin(), z1.rlcEnd());
+        addViaIterators(resultIt + 2ul * splitIndex, z2.rlcBegin(), z2.rlcEnd());
     }
 
     void BigUInt::splitOneMultiplicationViaIterators(rlIterator resultIt,
@@ -804,16 +791,14 @@ namespace big {
                                                      rlcIterator largeIt,
                                                      rlcIterator largeEnd) {
         const auto m = static_cast<size_t>(largeEnd - largeIt);
-        // assert(m >= s_karatsubaLowerLimit);
-        const auto n = static_cast<size_t>(smallEnd - smallIt);
         const size_t splitIndex = m / 2ul;
 
         multiplyViaIterators(resultIt, resultEnd, smallIt, smallEnd, largeIt, largeIt + splitIndex);
         BigUInt high;
-        high.resize(m - splitIndex + n + 1ul);
+        high.resize(m - splitIndex + static_cast<size_t>(smallEnd - smallIt) + 1ul);
         multiplyViaIterators(high.rlBegin(), high.rlEnd(), largeIt + splitIndex, largeEnd, smallIt, smallEnd);
         high.resizeToFit();
-        addViaIterators(resultIt + splitIndex, resultEnd, high.rlcBegin(), high.rlcEnd());
+        addViaIterators(resultIt + splitIndex, high.rlcBegin(), high.rlcEnd());
     }
 
     void BigUInt::multiplySortedViaIterators(rlIterator resultIt,
@@ -827,17 +812,17 @@ namespace big {
         // assert(largeSize >= smallSize);
 
         if (largeSize < s_karatsubaLowerLimit) {
-            schoolMultiply(resultIt, resultEnd, smallIt, smallEnd, largeIt, largeEnd);
+            schoolMultiply(resultIt, smallIt, smallEnd, largeIt, largeEnd);
         } else if (smallSize < s_karatsubaLowerLimit) {
             splitOneMultiplicationViaIterators(resultIt, resultEnd, smallIt, smallEnd, largeIt, largeEnd);
         } else if (2ul * smallSize <= largeSize) {
             splitOneMultiplicationViaIterators(resultIt, resultEnd, smallIt, smallEnd, largeIt, largeEnd);
         } else if (smallSize >= s_toomCook4LowerLimit) {
-            toomCook_4(resultIt, resultEnd, smallIt, smallEnd, largeIt, largeEnd);
+            toomCook_4(resultIt, smallIt, smallEnd, largeIt, largeEnd);
         } else if (smallSize >= s_toomCook3LowerLimit) {
-            toomCook_3(resultIt, resultEnd, smallIt, smallEnd, largeIt, largeEnd);
+            toomCook_3(resultIt, smallIt, smallEnd, largeIt, largeEnd);
         } else {
-            karatsubaMultiplyViaIterators(resultIt, resultEnd, smallIt, smallEnd, largeIt, largeEnd);
+            karatsubaMultiplyViaIterators(resultIt, smallIt, smallEnd, largeIt, largeEnd);
         }
     }
 
@@ -856,11 +841,7 @@ namespace big {
         }
     }
 
-    void BigUInt::toomCook_3(rlIterator resultIt,
-                             rlIterator resultEnd,
-                             rlcIterator smallIt,
-                             rlcIterator smallEnd,
-                             rlcIterator largeIt,
+    void BigUInt::toomCook_3(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt,
                              rlcIterator largeEnd) {
         // assert((largeEnd - largeIt) >= (smallEnd - smallIt));
         const size_t i = (smallEnd - smallIt) / 3ul;
@@ -893,18 +874,14 @@ namespace big {
         a2 = a2 + a1 - a4;
         a1 -= a3;
 
-        addViaIterators(resultIt, resultEnd, a0.magnitude().rlcBegin(), a0.magnitude().rlcEnd());
-        addViaIterators(resultIt + i, resultEnd, a1.magnitude().rlcBegin(), a1.magnitude().rlcEnd());
-        addViaIterators(resultIt + 2ul * i, resultEnd, a2.magnitude().rlcBegin(), a2.magnitude().rlcEnd());
-        addViaIterators(resultIt + 3ul * i, resultEnd, a3.magnitude().rlcBegin(), a3.magnitude().rlcEnd());
-        addViaIterators(resultIt + 4ul * i, resultEnd, a4.magnitude().rlcBegin(), a4.magnitude().rlcEnd());
+        addViaIterators(resultIt, a0.magnitude().rlcBegin(), a0.magnitude().rlcEnd());
+        addViaIterators(resultIt + i, a1.magnitude().rlcBegin(), a1.magnitude().rlcEnd());
+        addViaIterators(resultIt + 2ul * i, a2.magnitude().rlcBegin(), a2.magnitude().rlcEnd());
+        addViaIterators(resultIt + 3ul * i, a3.magnitude().rlcBegin(), a3.magnitude().rlcEnd());
+        addViaIterators(resultIt + 4ul * i, a4.magnitude().rlcBegin(), a4.magnitude().rlcEnd());
     }
 
-    void BigUInt::toomCook_4(rlIterator resultIt,
-                             rlIterator resultEnd,
-                             rlcIterator smallIt,
-                             rlcIterator smallEnd,
-                             rlcIterator largeIt,
+    void BigUInt::toomCook_4(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt,
                              rlcIterator largeEnd) {
         // assert((largeEnd - largeIt) >= (smallEnd - smallIt));
         const size_t i = (smallEnd - smallIt) / 4ul;
@@ -941,34 +918,27 @@ namespace big {
         BigInt a5 = (-10ll * n0 - 360ll * n3 + 10ll * r_one + 5ll * r_minusOne - 5ll * r_two - r_minusTwo + r_three) /
                     120ul;
 
-        addViaIterators(resultIt, resultEnd, n0.magnitude().rlcBegin(), n0.magnitude().rlcEnd());
-        addViaIterators(resultIt + i, resultEnd, a1.magnitude().rlcBegin(), a1.magnitude().rlcEnd());
-        addViaIterators(resultIt + 2ul * i, resultEnd, a2.magnitude().rlcBegin(), a2.magnitude().rlcEnd());
-        addViaIterators(resultIt + 3ul * i, resultEnd, a3.magnitude().rlcBegin(), a3.magnitude().rlcEnd());
-        addViaIterators(resultIt + 4ul * i, resultEnd, a4.magnitude().rlcBegin(), a4.magnitude().rlcEnd());
-        addViaIterators(resultIt + 5ul * i, resultEnd, a5.magnitude().rlcBegin(), a5.magnitude().rlcEnd());
-        addViaIterators(resultIt + 6ul * i, resultEnd, n3.magnitude().rlcBegin(), n3.magnitude().rlcEnd());
+        addViaIterators(resultIt, n0.magnitude().rlcBegin(), n0.magnitude().rlcEnd());
+        addViaIterators(resultIt + i, a1.magnitude().rlcBegin(), a1.magnitude().rlcEnd());
+        addViaIterators(resultIt + 2ul * i, a2.magnitude().rlcBegin(), a2.magnitude().rlcEnd());
+        addViaIterators(resultIt + 3ul * i, a3.magnitude().rlcBegin(), a3.magnitude().rlcEnd());
+        addViaIterators(resultIt + 4ul * i, a4.magnitude().rlcBegin(), a4.magnitude().rlcEnd());
+        addViaIterators(resultIt + 5ul * i, a5.magnitude().rlcBegin(), a5.magnitude().rlcEnd());
+        addViaIterators(resultIt + 6ul * i, n3.magnitude().rlcBegin(), n3.magnitude().rlcEnd());
     }
 
-    void BigUInt::schoolMultiply(rlIterator resultIt,
-                                 rlIterator resultEnd,
-                                 rlcIterator smallIt,
-                                 rlcIterator smallEnd,
-                                 rlcIterator largeIt,
+    void BigUInt::schoolMultiply(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt,
                                  rlcIterator largeEnd) {
         // assert((largeEnd - largeIt) >= (smallEnd - smallIt));
         for (size_t i = 0; smallIt < smallEnd; ++i) {
-            addMultipleViaIterators(resultIt + i, resultEnd, largeIt, largeEnd, *smallIt);
+            addMultipleViaIterators(resultIt + i, largeIt, largeEnd, *smallIt);
             ++smallIt;
         }
     }
 
     /** Division **/
-    size_t BigUInt::divisionSubRoutine(const lrcIterator leftToRightConstIt,
-                                       const lrcIterator leftToRightConstEnd,
-                                       const rlIterator rightToLeftIt,
-                                       const rlIterator rightToLeftEnd,
-                                       const BigUInt &divisor) {
+    size_t BigUInt::divisionSubRoutine(const lrcIterator leftToRightConstIt, const lrcIterator leftToRightConstEnd,
+                                       const rlIterator rightToLeftIt, const BigUInt &divisor) {
         if (lessThanViaIterators(leftToRightConstIt, leftToRightConstEnd, divisor.lrcBegin(), divisor.lrcEnd())) {
             return 0ul;
         }
@@ -982,7 +952,7 @@ namespace big {
         size_t correction = 0ul;
         while (not lessThanShiftedRhsViaIterators(
                 leftToRightConstIt, leftToRightConstEnd, divisor.lrcBegin(), divisor.lrcEnd(), 1)) {
-            subtractViaIterators(rightToLeftIt + 1ul, rightToLeftEnd, divisor.rlcBegin(), divisor.rlcEnd());
+            subtractViaIterators(rightToLeftIt + 1ul, divisor.rlcBegin(), divisor.rlcEnd());
             correction += BigUInt::s_base;
         }
 
@@ -1010,7 +980,7 @@ namespace big {
             --quotientEstimate;
             closestMultipleEstimate -= divisor;
         }
-        subtractViaIterators(rightToLeftIt, rightToLeftEnd, closestMultipleEstimate.rlcBegin(),
+        subtractViaIterators(rightToLeftIt, closestMultipleEstimate.rlcBegin(),
                              closestMultipleEstimate.rlcEnd());
         return quotientEstimate + correction;
     }
@@ -1037,21 +1007,21 @@ namespace big {
         const size_t n = divisor.digitCount();
         if (m <= n + 1) {
             return BigUInt::divisionSubRoutine(
-                    dividend.lrcBegin(), dividend.lrcEnd(), dividend.rlBegin(), dividend.rlEnd(), divisor);
+                    dividend.lrcBegin(), dividend.lrcEnd(), dividend.rlBegin(), divisor);
         }
 
         std::vector<size_t> divisorDigits(m - n + 1ul, 0ul);
         while (m > n + 1) {
             const size_t splitIndex = m - n - 1ul;
             divisorDigits[splitIndex] = BigUInt::divisionSubRoutine(
-                    dividend.lrcBegin(), dividend.lrcBegin() + n + 1, dividend.rlBegin() + splitIndex, dividend.rlEnd(),
+                    dividend.lrcBegin(), dividend.lrcBegin() + n + 1, dividend.rlBegin() + splitIndex,
                     divisor);
             dividend.resizeToFit();
             m = dividend.digitCount();
         }
         if (m > n || dividend.mostSignificantDigit() >= divisor.mostSignificantDigit()) {
             divisorDigits[0ul] = BigUInt::divisionSubRoutine(
-                    dividend.lrcBegin(), dividend.lrcEnd(), dividend.rlBegin(), dividend.rlEnd(), divisor);
+                    dividend.lrcBegin(), dividend.lrcEnd(), dividend.rlBegin(), divisor);
         }
         bubbleViaIterators(divisorDigits.begin(), divisorDigits.end());
         BigUInt result(std::move(divisorDigits), false);
