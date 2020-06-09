@@ -60,7 +60,14 @@ protected:
     /***************** Vector functions *****************/
     inline void reserve(size_t size) { m_digits.reserve(size); }
     inline void resizeToFit() { resizeToFitVector(m_digits); }
-    inline void resize(size_t size) { m_digits.resize(size); }
+    inline void resize(size_t size) {
+        if (size < digitCount()) {
+            m_digits.resize(size);
+            resizeToFit();
+        } else {
+            m_digits.resize(size);
+        }
+    }
     static void resizeToFitVector(std::vector<size_t>& digits);
     static void copyViaIterators(rlcIterator begin, rlcIterator end, rlIterator resultIt);
 

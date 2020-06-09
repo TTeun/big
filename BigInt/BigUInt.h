@@ -15,8 +15,6 @@ public:
     static const size_t s_toomCook3LowerLimit = 800ul;
     static const size_t s_toomCook4LowerLimit = 2000ul;
 
-    static BigUInt longDivision(BigUInt& dividend, const BigUInt& divisor);
-
 public:
     /***************** Constructors *****************/
     BigUInt() { init(0); }
@@ -181,7 +179,7 @@ private:
     static void toomCook_4(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, rlcIterator largeEnd);
     static void schoolMultiply(rlIterator resultIt, rlcIterator smallIt, rlcIterator smallEnd, rlcIterator largeIt, size_t largeSize);
 
-    /** Division **/
+    static BigUInt longDivision(BigUInt& u, BigUInt v, bool findRemainder);
     static size_t  divisionSubRoutine(const lrcIterator leftToRightConstIt,
                                       const lrcIterator leftToRightConstEnd,
                                       const rlIterator  rightToLeftIt,

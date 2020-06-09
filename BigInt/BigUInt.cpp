@@ -216,7 +216,7 @@ BigUInt BigUInt::operator/(const BigUInt& divisor) const {
     if (m < n) { return 0ul; }
     if (m == 1) { return mostSignificantDigit() / divisor.mostSignificantDigit(); }
     BigUInt copy(*this);
-    return longDivision(copy, divisor);
+    return longDivision(copy, divisor, false);
 }
 
 BigUInt BigUInt::operator/(size_t divisor) const {
@@ -237,15 +237,12 @@ BigUInt& BigUInt::operator%=(size_t mod) {
 
 BigUInt& BigUInt::operator%=(const BigUInt& mod) {
     // assert(mod != 0ul);
-
-    if (*this < mod) { return *this; }
-    const size_t factor = ceilingIntegerDivision(BigUInt::s_base, 2ul * mod.mostSignificantDigit());
-    if (factor != 1ul) {
-        *this *= factor;
-        longDivisionAfterAdjustingDivisor(*this, factor * mod);
-        *this /= factor;
+    if (*this < mod) {
+        return *this;
+    } else if (mod.digitCount() == 1ul) {
+        return *this %= mod.mostSignificantDigit();
     } else {
-        longDivisionAfterAdjustingDivisor(*this, mod);
+        longDivision(*this, mod, true);
     }
     resizeToFit();
     return *this;
@@ -793,20 +790,52 @@ size_t BigUInt::divisionSubRoutine(const lrcIterator leftToRightConstIt,
     return quotientEstimate + correction;
 }
 
-BigUInt BigUInt::longDivision(BigUInt& dividend, const BigUInt& divisor) {
-    if (dividend < divisor) { return 0ul; }
-    const size_t factor = ceilingIntegerDivision(BigUInt::s_base, 2ul * divisor.mostSignificantDigit());
-    if (factor > 1) {
-        dividend *= factor;
-        return longDivisionAfterAdjustingDivisor(dividend, factor * divisor);
-    } else {
-        return longDivisionAfterAdjustingDivisor(dividend, divisor);
+BigUInt BigUInt::longDivision(BigUInt& u, BigUInt v, bool findRemainder) {
+    // Knuth "Art of computer programming" volume 2
+    const size_t d     = s_maxDigit / v.mostSignificantDigit();
+    const size_t uSize = u.digitCount();
+    const size_t n     = v.digitCount();
+    const size_t m     = u.digitCount() - n;
+    u.resize(uSize + 1ul);
+
+    multiplyBySingleDigitViaIterators(u.rlBegin(), u.rlEnd(), d);
+    multiplyBySingleDigitViaIterators(v.rlBegin(), v.rlEnd(), d);
+    std::vector<size_t> quotient(m + 1ul, 0ul);
+    for (long long j = m; j >= 0l; --j) {
+        const size_t leadingU = (u.digitAt(n + j) << s_bitsPerDigit) + u.digitAt(n + j - 1);
+        size_t       q        = leadingU / v.mostSignificantDigit();
+        size_t       r        = leadingU % v.mostSignificantDigit();
+
+        if ((q & s_base) || (q * v.digitAt(n - 2ul) > s_base * r + u.digitAt(n + j - 2))) {
+            --q;
+            r += v.mostSignificantDigit();
+            if (r < s_base) {
+                if ((q & s_base) || (q * v.digitAt(n - 2ul) > s_base * r + u.digitAt(n + j - 2))) {
+                    --q;
+                    r += v.mostSignificantDigit();
+                }
+            }
+        }
+        BigUInt temp = q * v;
+        temp.resize(n + 1ul);
+        if (lessThanViaIterators(u.lrcBegin() - m + j, u.lrcEnd() - j, temp.lrcBegin(), temp.lrcEnd())) {
+            --q;
+            temp -= v;
+        }
+        quotient[j] = q;
+        subtractViaIterators(u.rlBegin() + j, temp.rlcBegin(), temp.rlcEnd());
     }
+    if (findRemainder) {
+        u.resize(n);
+        u.divideByLessThanBase(d);
+    }
+    return BigUInt(std::move(quotient), false);
 }
 
 BigUInt BigUInt::longDivisionAfterAdjustingDivisor(BigUInt& dividend, const BigUInt& divisor) {
     // assert(divisor <= dividend);
     // assert(divisor.mostSignificantDigit() * 2ul >= BigUInt::s_base);
+    assert(false);
 
     size_t       m = dividend.digitCount();
     const size_t n = divisor.digitCount();

@@ -73,8 +73,8 @@ double BenchMark::divide(size_t powerOfTen, size_t numberOfRepetitions) {
     double gmpTime = 0.0;
     double bigTime = 0.0;
     for (size_t i = 0; i != numberOfRepetitions; ++i) {
-        const BigUInt a = BigUInt::createRandomFromDecimalDigits(powerOfTen);
-        BigUInt       b = BigUInt::createRandomFromDecimalDigits(powerOfTen / 2ul);
+        BigUInt       b = BigUInt::createRandomFromDecimalDigits(powerOfTen);
+        const BigUInt a = BigUInt::createRandomFromDecimalDigits(powerOfTen / 2ul);
         mpz_t         n1;
         mpz_init(n1);
         mpz_set_str(n1, a.toBinaryString().c_str(), 2);
@@ -131,32 +131,22 @@ double BenchMark::modulo(size_t powerOfTen, size_t numberOfRepetitions) {
 
 void BenchMark::run(const std::vector<std::pair<size_t, size_t>>& digitCountAndRepetitions) {
     std::cout << "Decimal digits:\t";
-    for (auto it : digitCountAndRepetitions) {
-        std::cout << std::setfill(' ') << std::setw(15) << it.first;
-    }
+    for (auto it : digitCountAndRepetitions) { std::cout << std::setfill(' ') << std::setw(15) << it.first; }
     std::cout << '\n';
 
     std::cout << "Add:\t\t\t";
-    for (auto it : digitCountAndRepetitions) {
-        std::cout << std::setfill(' ') << std::setw(15) << add(it.first, it.second);
-    }
+    for (auto it : digitCountAndRepetitions) { std::cout << std::setfill(' ') << std::setw(15) << add(it.first, it.second); }
     std::cout << '\n';
 
     std::cout << "Multiply:\t\t";
-    for (auto it : digitCountAndRepetitions) {
-        std::cout << std::setfill(' ') << std::setw(15) << multiply(it.first, it.second);
-    }
+    for (auto it : digitCountAndRepetitions) { std::cout << std::setfill(' ') << std::setw(15) << multiply(it.first, it.second); }
     std::cout << '\n';
 
     std::cout << "Divide:\t\t\t";
-    for (auto it : digitCountAndRepetitions) {
-        std::cout << std::setfill(' ') << std::setw(15) << divide(it.first, it.second);
-    }
+    for (auto it : digitCountAndRepetitions) { std::cout << std::setfill(' ') << std::setw(15) << divide(it.first, it.second); }
     std::cout << '\n';
 
     std::cout << "Modulo:\t\t\t";
-    for (auto it : digitCountAndRepetitions) {
-        std::cout << std::setfill(' ') << std::setw(15) << modulo(it.first, it.second);
-    }
+    for (auto it : digitCountAndRepetitions) { std::cout << std::setfill(' ') << std::setw(15) << modulo(it.first, it.second); }
     std::cout << '\n';
 }
